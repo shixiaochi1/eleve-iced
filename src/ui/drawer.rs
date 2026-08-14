@@ -37,6 +37,8 @@ pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Messa
         NavSection::Learn => "学习",
         NavSection::Channels => "频道",
         NavSection::Usage => "用量",
+        NavSection::Theme => "主题",
+        NavSection::About => "关于",
     };
 
     // Header with close button
