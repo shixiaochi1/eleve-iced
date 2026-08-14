@@ -1,9 +1,15 @@
 use iced::widget::{button, column, container, rule, Svg, Space};
 use iced::{Element, Background, Length, Border, Gradient, Padding};
-use std::path::PathBuf;
 
 use crate::ui::{Message, NavSection};
 use super::theme;
+
+// Base path for assets (resolved at compile time so it works regardless of cwd)
+const ASSET_BASE: &str = env!("CARGO_MANIFEST_DIR");
+
+fn asset_path(name: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(ASSET_BASE).join("assets/icons").join(format!("{}.svg", name))
+}
 
 pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
     let logo_btn = logo_button();
@@ -43,7 +49,7 @@ pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
 
 fn logo_button<'a>() -> iced::widget::Button<'a, Message, iced::Theme, iced::Renderer> {
     button(
-        Svg::from_path(PathBuf::from("assets/icons/Elogo.svg"))
+        Svg::from_path(asset_path("Elogo"))
             .width(Length::Fixed(theme::LOGO_ICON_SIZE))
             .height(Length::Fixed(theme::LOGO_ICON_SIZE)),
     )
@@ -88,7 +94,7 @@ fn nav_icon<'a>(
     let icon_color = if is_active { theme::TEXT_ON_ACCENT } else { theme::TEXT_MUTED };
 
     button(
-        Svg::from_path(icon_path(icon_name))
+        Svg::from_path(asset_path(icon_name))
             .width(Length::Fixed(theme::ICON_SIZE))
             .height(Length::Fixed(theme::ICON_SIZE))
             .style(move |_: &iced::Theme, _| iced::widget::svg::Style { color: Some(icon_color) }),
@@ -125,6 +131,4 @@ fn nav_icon<'a>(
     .into()
 }
 
-fn icon_path(name: &str) -> PathBuf {
-    PathBuf::from("assets/icons").join(format!("{}.svg", name))
-}
+

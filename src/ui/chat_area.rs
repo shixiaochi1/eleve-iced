@@ -32,16 +32,16 @@ pub fn view<'a>(_active_section: &'a NavSection) -> Element<'a, Message> {
     let content = column![
         tool_status,     // h-10=40px
         messages,        // flex-1
-        context_bar,     // 按钮行全宽（无上下padding）
-        // 进度条和输入框：共享左右下12px边距，上4px
+        // ContextBar、进度条、输入框统一左12px右12px对齐，间距4px
         container(column![
+            context_bar,
             progress_bar_view(),
             input_area,
         ].spacing(4))
             .width(Length::Fill)
-            .padding(Padding::new(4.0).right(12.0).bottom(12.0).left(12.0)),
+            .padding(Padding::new(0.0).right(12.0).bottom(12.0).left(12.0)),
     ]
-    .spacing(0); // context_bar 到 container 无间距
+    .spacing(0);
 
     container(content)
         .width(Length::Fill)
@@ -88,14 +88,19 @@ fn tool_status_bar_view<'a>() -> Element<'a, Message> {
             snap: true,
         });
 
+    // Tauri: flex items-center h-10 px-4 border-b
+    // column 内: row 填满上方空间并垂直居中内容，separator 贴在底部
     column![
-        row![left, Space::new().width(Length::Fill).height(Length::Shrink)]
+        container(row![left, Space::new().width(Length::Fill).height(Length::Shrink)]
             .spacing(8)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center))
+        .width(Length::Fill)
+        .height(Length::Fill),
         separator,
     ]
-    .height(Length::Fixed(40.0))
-    .padding([0, 16])
+    .height(Length::Fixed(44.0)) // 比 40px 多 4px 呼吸空间，但不会太远
+    .padding(Padding::new(6.0).right(16.0).bottom(0.0).left(16.0))
+    .spacing(0)
     .into()
 }
 
@@ -148,7 +153,7 @@ fn empty_state_view<'a>() -> Element<'a, Message> {
         .height(Length::Fill)
         .align_x(Alignment::Center)
         .align_y(Alignment::Center)
-        .padding([32, 24])
+        .padding(Padding::new(64.0).right(24.0).bottom(32.0).left(24.0))
         .into()
 }
 
@@ -186,7 +191,7 @@ fn context_bar_view<'a>() -> Element<'a, Message> {
     .align_y(Alignment::Center);
 
     let info_row = row![left, Space::new().width(Length::Fill).height(Length::Shrink), info_right]
-        .padding([0, 12]) // 只保留左右12px，上下为0
+        .padding(Padding::new(0.0)) // padding 由外层 container 的 left(12)/right(12) 统一控制
         .align_y(Alignment::Center);
 
     column![info_row].into()
@@ -233,22 +238,40 @@ fn input_area_view<'a>() -> Element<'a, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    // 发送按钮 — 圆形, 26px, 白色背景, 深色箭头 (Tauri size-(--composer-control-primary-size)=30px)
+    // 发送按钮 — Tauri: size-7.5=30px, bg-foreground(白), arrow-up 16px
+    // 🔴 Iced SVG 渲染: SVG 的 width/height 属性会覆盖 .width()/.height()
+    // 正确做法: 让 SVG 自动撑满，按钮控制尺寸
     let send_btn = button(
-        Svg::from_path(asset_path("arrow-up"))
-            .width(Length::Fixed(14.0))
-            .height(Length::Fixed(14.0))
-            .style(|_: &iced::Theme, _| iced::widget::svg::Style {
-                color: Some(Color::from_rgb(0.08, 0.09, 0.10)),
-            }),
+        container(
+            Svg::from_path(asset_path("arrow-up"))
+                .width(Length::Shrink)
+                .height(Length::Shrink)
+                .style(|_: &iced::Theme, _s: iced::widget::svg::Status| iced::widget::svg::Style {
+                    color: Some(Color::from_rgb(0.08, 0.09, 0.10)),
+                }),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center),
     )
-    .width(Length::Fixed(26.0))
-    .height(Length::Fixed(26.0))
-    .padding(0)
-    .style(|_: &iced::Theme, _| iced::widget::button::Style {
-        background: Some(Background::Color(theme::TEXT_PRIMARY)),
-        border: Border { radius: 13.0.into(), ..Default::default() },
-        ..Default::default()
+    .width(Length::Fixed(30.0))
+    .height(Length::Fixed(30.0))
+    .padding(6)
+    .style(|_: &iced::Theme, status| {
+        let hovered = matches!(status, iced::widget::button::Status::Hovered);
+        iced::widget::button::Style {
+            background: if hovered {
+                Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.94, 0.85)))
+            } else {
+                Some(Background::Color(theme::TEXT_PRIMARY))
+            },
+            border: Border {
+                radius: 15.0.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
     });
 
     let control_row = row![
