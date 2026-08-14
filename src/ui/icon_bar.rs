@@ -7,7 +7,7 @@ use super::theme;
 
 pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
     let logo_btn = logo_button();
-    let nav_items = column(nav_buttons(active_section)).spacing(2);
+    let nav_items = column(nav_buttons(active_section)).spacing(3);
 
     let bottom_items = column![
         nav_icon("settings", NavSection::Settings, active_section),
@@ -18,6 +18,7 @@ pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
 
     let content = column![
         logo_btn,
+        Space::new().height(Length::Fixed(8.0)),
         nav_items,
         Space::new().height(Length::Fill),
         rule::horizontal(1.0).style(|_: &iced::Theme| rule::Style {
@@ -66,6 +67,7 @@ fn logo_button<'a>() -> iced::widget::Button<'a, Message, iced::Theme, iced::Ren
 
 fn nav_buttons<'a>(active_section: &'a NavSection) -> Vec<Element<'a, Message>> {
     vec![
+        nav_icon("users", NavSection::Agent, active_section),
         nav_icon("folder-git-2", NavSection::Files, active_section),
         nav_icon("layout-grid", NavSection::Kanban, active_section),
         nav_icon("clock", NavSection::Cron, active_section),
