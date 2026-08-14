@@ -1,22 +1,7 @@
 use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Color, Element, Length, Border, Background};
+use iced::{Element, Length};
 
-use crate::ui::{Message, NavSection};
-
-// ============================================================
-// Color constants
-// ============================================================
-
-const BG_CARD: Color = Color::from_rgb(0.14, 0.15, 0.17);
-const TEXT_PRIMARY: Color = Color::from_rgb(0.92, 0.93, 0.95);
-const TEXT_MUTED: Color = Color::from_rgb(0.55, 0.55, 0.58);
-
-const DRAWER_WIDTH: f32 = 280.0;
-const CARD_RADIUS: f32 = 12.0;
-
-// ============================================================
-// View
-// ============================================================
+use crate::ui::{Message, NavSection, theme};
 
 pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Message> {
     if !open {
@@ -41,11 +26,10 @@ pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Messa
         NavSection::About => "关于",
     };
 
-    // Header with close button
     let header = row![
         text(section_name)
             .size(14)
-            .color(TEXT_PRIMARY)
+            .color(theme::TEXT_PRIMARY)
             .width(Length::Fill),
         button(text("✕").size(11))
             .padding([4, 8])
@@ -56,7 +40,6 @@ pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Messa
     .spacing(8)
     .align_y(iced::Alignment::Center);
 
-    // Mock content
     let mock_items = vec![
         ("文件", "src/main.rs"),
         ("文件", "src/ui/mod.rs"),
@@ -71,8 +54,8 @@ pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Messa
         .map(|(label, value)| {
             container(
                 row![
-                    text(*label).size(12).color(TEXT_MUTED).width(Length::Fill),
-                    text(*value).size(12).color(TEXT_PRIMARY),
+                    text(*label).size(12).color(theme::TEXT_MUTED).width(Length::Fill),
+                    text(*value).size(12).color(theme::TEXT_PRIMARY),
                 ]
                 .spacing(8),
             )
@@ -82,21 +65,11 @@ pub fn view<'a>(open: bool, active_section: &'a NavSection) -> Element<'a, Messa
         .collect();
 
     let content = scrollable(column(items).spacing(2)).height(Length::Fill);
-
     let drawer_content = column![header, content].spacing(0);
 
-    // 抽屉卡片：圆角 + 背景色
     container(drawer_content)
-        .width(Length::Fixed(DRAWER_WIDTH))
+        .width(Length::Fixed(theme::DRAWER_WIDTH))
         .height(Length::Fill)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(BG_CARD)),
-            border: Border {
-                radius: CARD_RADIUS.into(),
-                width: 0.0,
-                color: Color::TRANSPARENT,
-            },
-            ..Default::default()
-        })
+        .style(theme::card_style())
         .into()
 }
