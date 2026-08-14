@@ -35,13 +35,7 @@ pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
     container(content)
         .width(Length::Fixed(theme::ICON_BAR_WIDTH))
         .height(Length::Fill)
-        .padding(
-            Padding::new(0.0)
-                .top(theme::ICON_BAR_PADDING)
-                .bottom(theme::ICON_BAR_PADDING)
-                .left(icon_padding)
-                .right(icon_padding),
-        )
+        .padding(Padding::new(0.0).bottom(theme::ICON_BAR_PADDING).left(icon_padding).right(icon_padding))
         .style(|_: &iced::Theme| container::Style { background: None, ..Default::default() })
         .into()
 }

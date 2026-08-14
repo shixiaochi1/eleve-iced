@@ -80,6 +80,6 @@ fn content_row_view<'a>(active_section: &'a NavSection, drawer_open: bool) -> El
     row![icon_bar, cards_row]
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(Padding::new(0.0).top(theme::CARD_GAP).right(theme::CARD_GAP).bottom(theme::CARD_GAP))
+        .padding(Padding::new(0.0).right(theme::CARD_GAP).bottom(theme::CARD_GAP))
         .into()
 }
