@@ -802,29 +802,28 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
             },
             ..Default::default()
         });
-    // 背景层：全屏暗化 + 点背景关闭（on_press=CloseCreateDialog）
-    let backdrop = MouseArea::new(
-        container(Space::new())
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(Background::Color(Color {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 0.5,
-                })),
-                ..Default::default()
-            }),
-    )
-    .on_press(Message::CloseCreateDialog);
+    // 背景层：全屏暗化按钮，点背景即关闭（on_press=CloseCreateDialog）。
+    // 关键：卡片（card）是 stack 中与背景【兄弟叠加】的独立元素（后者在上），
+    // 因此卡片内的 text_input / 取消 / 创建 按钮均不与背景按钮嵌套，点击互不干扰——
+    // 既修复了“button 包裹 text_input 导致无法输入”的旧 BUG，也去掉了包裹整卡
+    // 的 MouseArea（避免其对输入框焦点/事件带来任何歧义）。
+    // 点卡片空白处会穿透到背景按钮关闭弹窗（通用 modal 习惯）。
+    let backdrop = button(Space::new())
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(|_: &iced::Theme, _: button::Status| button::Style {
+            background: Some(Background::Color(Color {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.5,
+            })),
+            border: Border::default(),
+            ..Default::default()
+        })
+        .on_press(Message::CloseCreateDialog);
 
-    // 卡片层：与背景【兄弟叠加】（stack 中后者在上），而非嵌套在背景 MouseArea 内。
-    // 卡片外包一层 MouseArea(on_press=Dismiss，无操作) 仅用于“捕获卡片自身点击、阻止穿透到背景关闭”；
-    // 内部 text_input / 取消 / 创建 均为独立交互控件，点击时由它们优先捕获（button 先 capture 事件），
-    // 不受外层干扰——修复“新建后不出现卡片 / 无法输入”的根因。
-    let card_capture = MouseArea::new(card).on_press(Message::Dismiss);
-    let card_layer = container(card_capture)
+    let card_layer = container(card)
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x(Length::Fill)

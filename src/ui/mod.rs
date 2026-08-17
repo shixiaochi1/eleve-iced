@@ -849,4 +849,27 @@ mod tests {
         let _ = update(&mut state, Message::ConfirmCreate);
         assert_eq!(state.profiles.len(), before, "空名称不应创建卡片");
     }
+
+    // 渲染回归：创建卡片后整体 view / 弹窗 view 不得 panic（否则卡片会“看不到”）
+    #[test]
+    fn view_renders_after_create_no_panic() {
+        let (mut state, _) = new();
+
+        // Agent：打开 → 输入 → 确认 → 渲染
+        let before_p = state.profiles.len();
+        let _ = update(&mut state, Message::OpenCreateDialog(CreateDialog::Agent));
+        let _ = agents_panel::view(&state); // 弹窗渲染
+        let _ = update(&mut state, Message::CreateInputChanged("testagent".into()));
+        let _ = update(&mut state, Message::ConfirmCreate);
+        assert_eq!(state.profiles.len(), before_p + 1);
+        let _ = view(&state); // 含新卡片的整体渲染
+
+        // Project：同理
+        let before_j = state.projects.len();
+        let _ = update(&mut state, Message::OpenCreateDialog(CreateDialog::Project));
+        let _ = update(&mut state, Message::CreateInputChanged("testproj".into()));
+        let _ = update(&mut state, Message::ConfirmCreate);
+        assert_eq!(state.projects.len(), before_j + 1);
+        let _ = view(&state);
+    }
 }
