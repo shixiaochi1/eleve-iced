@@ -11,8 +11,12 @@ mod theme;
 
 use std::collections::{HashMap, HashSet};
 
-use iced::widget::{container, row, stack};
+use iced::advanced::widget::{operate, operation::scrollable::snap_to};
+use iced::widget::{container, row, stack, Id};
 use iced::{Element, Length, Padding, Background};
+
+/// Agents 面板滚动容器 id（新建卡片后用于 snap_to 顶部，确保新卡片立即可见）
+pub const AGENTS_PANEL_SCROLL_ID: &str = "agents-panel-scroll";
 
 // ============================================================
 // 导航分区 —— 严格对齐 Tauri 的三类「弹出」形态
@@ -673,15 +677,22 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
         }
         Message::DeleteProfile(id) => {
             state.profiles.retain(|p| p.id != id);
-            if state.selected_profile == id {
-                state.selected_profile = "default".into();
+            // 始终保证有一个默认选中的 Agent 卡片（防止选中态悬空 → 视觉空白）。
+            // 默认 Agent 不可删（UI 上无删除按钮），故优先回退到它；否则回退到首个。
+            if !state.profiles.iter().any(|p| p.id == state.selected_profile) {
+                state.selected_profile = if state.profiles.iter().any(|p| p.id == "default") {
+                    "default".into()
+                } else {
+                    state.profiles.first().map(|p| p.id.clone()).unwrap_or_default()
+                };
             }
         }
         Message::DeleteProject(id) => {
             // 自动发现项目 = 忽略（dismiss）；显式项目 = 删除
             state.projects.retain(|p| p.id != id);
-            if state.selected_project.as_deref() == Some(id.as_str()) {
-                state.selected_project = None;
+            // 选中态悬空 → 回退到仍存在的项目（主目录桶恒在，必有一个默认项目显示）
+            if !state.projects.iter().any(|p| Some(&p.id) == state.selected_project.as_ref()) {
+                state.selected_project = state.projects.first().map(|p| p.id.clone());
             }
             if state.drill_project.as_deref() == Some(id.as_str()) {
                 state.drill_project = None;
@@ -700,24 +711,30 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
         }
         Message::ConfirmCreate => {
             let name = state.create_input.trim().to_string();
-            if !name.is_empty() {
+            // 仅当名称非空才真正创建（空名称 = 无操作）
+            let created = !name.is_empty();
+            if created {
                 match state.create_dialog {
                     Some(CreateDialog::Agent) => {
-                        state.profiles.push(AgentProfile {
-                            id: name.clone(),
-                            display_name: name.clone(),
-                            color: None,
-                            has_avatar: false,
-                            avatar_key: None,
-                            is_default: false,
-                            model: None,
-                            provider: None,
-                            skill_count: 0,
-                        });
+                        // 置顶插入：新建 Agent 立即可见（不再沉到列表底部被遮挡）
+                        state.profiles.insert(
+                            0,
+                            AgentProfile {
+                                id: name.clone(),
+                                display_name: name.clone(),
+                                color: None,
+                                has_avatar: false,
+                                avatar_key: None,
+                                is_default: false,
+                                model: None,
+                                provider: None,
+                                skill_count: 0,
+                            },
+                        );
                         state.selected_profile = name;
                     }
                     Some(CreateDialog::Project) => {
-                        state.projects.push(ProjectNode {
+                        let proj = ProjectNode {
                             id: name.clone(),
                             label: name.clone(),
                             path: Some(format!("/projects/{}", name)),
@@ -729,14 +746,32 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
                             last_active: "刚刚".into(),
                             preview_sessions: vec![],
                             repos: vec![],
-                        });
-                        state.selected_project = Some(name);
+                        };
+                        // 置顶于「主目录」桶之后（保持 Home 恒首），新项目立即可见
+                        let idx = state
+                            .projects
+                            .iter()
+                            .position(|p| p.is_no_project)
+                            .map(|i| i + 1)
+                            .unwrap_or(0);
+                        state.projects.insert(idx, proj);
+                        state.selected_project = Some(name.clone());
+                        // 新建项目默认展开，立刻看到空态/预览
+                        state.expanded_projects.insert(name);
                     }
                     None => {}
                 }
             }
             state.create_dialog = None;
             state.create_input.clear();
+
+            // 创建成功后把面板滚动到顶部，确保新卡片“弹”到可见区域
+            if created {
+                return operate(snap_to(
+                    Id::new(AGENTS_PANEL_SCROLL_ID),
+                    iced::widget::scrollable::RelativeOffset::START.into(),
+                ));
+            }
         }
         // ── 文件浏览器 ──
         Message::ToggleDir(path) => {
@@ -825,7 +860,10 @@ mod tests {
         let _ = update(&mut state, Message::CreateInputChanged("mytest".into()));
         let _ = update(&mut state, Message::ConfirmCreate);
         assert_eq!(state.profiles.len(), before + 1);
-        assert_eq!(state.profiles.last().unwrap().id, "mytest");
+        // 新建 Agent 置顶（index 0），确保立即可见、不被沉到列表底部
+        assert_eq!(state.profiles.first().unwrap().id, "mytest");
+        // 新建后默认选中该卡片
+        assert_eq!(state.selected_profile, "mytest");
         assert!(state.create_dialog.is_none(), "弹窗应在创建后关闭");
     }
 
@@ -837,7 +875,9 @@ mod tests {
         let _ = update(&mut state, Message::CreateInputChanged("projx".into()));
         let _ = update(&mut state, Message::ConfirmCreate);
         assert_eq!(state.projects.len(), before + 1);
-        assert_eq!(state.projects.last().unwrap().id, "projx");
+        // 新项目紧随「主目录」桶（index 1），保持 Home 恒首且新项目立即可见
+        assert_eq!(state.projects[1].id, "projx");
+        assert_eq!(state.selected_project.as_deref(), Some("projx"));
     }
 
     #[test]

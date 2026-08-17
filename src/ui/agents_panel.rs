@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use iced::border::Radius;
 use iced::widget::{
     button, column, container, hover, row, rule, scrollable, stack, text, text_input, MouseArea,
-    Space, Svg,
+    Space, Svg, Id,
 };
 use iced::{
     Alignment, Background, Border, Color, Element, Font, Length, Shadow, Vector,
@@ -49,7 +49,10 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     .spacing(0)
     .width(Length::Fill);
 
-    let scroller = scrollable(content).width(Length::Fill).height(Length::Fill);
+    let scroller = scrollable(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .id(Id::new(crate::ui::AGENTS_PANEL_SCROLL_ID)); // 新建卡片后 snap_to 到此 id 滚到顶部
 
     container(scroller)
         .width(Length::Fill)
