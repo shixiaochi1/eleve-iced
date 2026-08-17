@@ -53,6 +53,13 @@ pub enum Overlay {
     Model,
 }
 
+/// 新建弹窗类型（对齐 Tauri CreateAgentDialog / ProjectDialog）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CreateDialog {
+    Agent,
+    Project,
+}
+
 // ============================================================
 // 数据模型（mock）
 // ============================================================
@@ -63,11 +70,70 @@ pub struct ChatMessage {
     pub content: String,
 }
 
+/// Agent 身份（对齐 Tauri ProfilePanel.ProfileCardData）
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // has_avatar / avatar_key 为真实头像能力字段，mock 阶段暂以 glyph 渲染
+pub struct AgentProfile {
+    pub id: String,
+    pub display_name: String,
+    /// Agent 主题色（#RRGGBB；来自后端 profile.yaml color，仅 UI 用）
+    pub color: Option<String>,
+    /// 是否有上传头像（有图显示图，无图显示首字母 glyph）
+    pub has_avatar: bool,
+    /// 默认头像 key（预设头像库，随主题色渲染 SVG）
+    pub avatar_key: Option<String>,
+    pub is_default: bool,
+    pub model: Option<String>,
+    pub provider: Option<String>,
+    pub skill_count: usize,
+}
+
+/// 会话预览（对齐 Tauri SessionPreview）
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // id 为模型身份字段，视图暂未展示
+pub struct SessionPreview {
+    pub id: String,
+    pub title: String,
+    /// 已格式化为 "刚刚" / "3m" / "2h" / "8/17"
+    pub last_active: String,
+}
+
+/// Lane（对齐 Tauri LaneGroup，钻取视图用）
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // id 为模型身份字段，视图暂未展示
+pub struct LaneGroup {
+    pub id: String,
+    pub label: String,
+    pub session_count: usize,
+    pub sessions: Vec<SessionPreview>,
+}
+
+/// Repo（对齐 Tauri RepoNode，钻取视图用）
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // id 为模型身份字段，视图暂未展示
+pub struct RepoNode {
+    pub id: String,
+    pub label: String,
+    pub session_count: usize,
+    pub lanes: Vec<LaneGroup>,
+}
+
+/// 项目（对齐 Tauri ProjectNode，overview / drill 共用）
 #[derive(Debug, Clone)]
 pub struct ProjectNode {
-    pub name: String,
-    pub path: String,
-    pub children: Option<Vec<ProjectNode>>,
+    pub id: String,
+    pub label: String,
+    pub path: Option<String>,
+    pub color: Option<String>,
+    pub icon: Option<String>,
+    pub is_auto: bool,
+    /// Home 桶（无归属会话兜底；恒首、无右键菜单）
+    pub is_no_project: bool,
+    pub session_count: usize,
+    /// 总览模式预览会话（Top3，对齐 Hermes PROJECT_PREVIEW_COUNT）
+    pub preview_sessions: Vec<SessionPreview>,
+    /// 钻取模式全量水合（Repo → Lane → Session）
+    pub repos: Vec<RepoNode>,
 }
 
 #[derive(Debug, Clone)]
@@ -142,8 +208,16 @@ pub enum Message {
 
     // ── Agent 左侧栏 ──
     SelectProfile(String),
-    ToggleProject(String),
-    SelectProject(String),
+    ToggleProjectExpand(String), // 展开/折叠项目预览会话（overview）
+    SelectProject(String),       // 选中（激活）项目
+    EnterDrill(String),          // 进入项目钻取视图（Repo/Lane/Session 树）
+    ExitDrill,                   // 返回项目总览
+    DeleteProfile(String),       // 删除 Agent（mock：直接移除，无确认）
+    DeleteProject(String),       // 删除/忽略项目（自动项目 = dismiss，显式项目 = 删除）
+    OpenCreateDialog(CreateDialog),
+    CloseCreateDialog,
+    CreateInputChanged(String),
+    ConfirmCreate,
 
     // ── 文件浏览器（右抽屉）──
     ToggleDir(String),
@@ -172,11 +246,14 @@ pub struct State {
     pub messages: Vec<ChatMessage>,
 
     // Agent 左侧栏
-    pub profiles: Vec<(String, String)>, // (id, label)
+    pub profiles: Vec<AgentProfile>,
     pub selected_profile: String,
     pub projects: Vec<ProjectNode>,
-    pub expanded_projects: HashSet<String>,
-    pub selected_project: Option<String>,
+    pub expanded_projects: HashSet<String>, // 按 id（overview 展开态）
+    pub selected_project: Option<String>,   // 激活项目 id（含 __no_project__）
+    pub drill_project: Option<String>,      // 钻取视图中的项目 id
+    pub create_dialog: Option<CreateDialog>,
+    pub create_input: String,
 
     // 文件浏览器
     pub fs_root_name: String,
@@ -212,42 +289,178 @@ fn initial_messages() -> Vec<ChatMessage> {
     ]
 }
 
-fn initial_profiles() -> Vec<(String, String)> {
+fn initial_profiles() -> Vec<AgentProfile> {
+    use AgentProfile as A;
     vec![
-        ("default".into(), "默认 Agent".into()),
-        ("coder".into(), "代码助手".into()),
-        ("analyst".into(), "数据分析师".into()),
-        ("writer".into(), "文档写手".into()),
-        ("ops".into(), "运维助手".into()),
+        A {
+            id: "default".into(),
+            display_name: "默认 Agent".into(),
+            color: None,
+            has_avatar: false,
+            avatar_key: None,
+            is_default: true,
+            model: Some("qwen3.7-plus".into()),
+            provider: Some("siliconflow".into()),
+            skill_count: 6,
+        },
+        A {
+            id: "coder".into(),
+            display_name: "代码助手".into(),
+            color: Some("#3B82F6".into()),
+            has_avatar: false,
+            avatar_key: None,
+            is_default: false,
+            model: Some("deepseek-coder".into()),
+            provider: Some("deepseek".into()),
+            skill_count: 9,
+        },
+        A {
+            id: "analyst".into(),
+            display_name: "数据分析师".into(),
+            color: Some("#10B981".into()),
+            has_avatar: false,
+            avatar_key: None,
+            is_default: false,
+            model: Some("qwen3.7-plus".into()),
+            provider: Some("siliconflow".into()),
+            skill_count: 4,
+        },
+        A {
+            id: "writer".into(),
+            display_name: "文档写手".into(),
+            color: Some("#F59E0B".into()),
+            has_avatar: false,
+            avatar_key: None,
+            is_default: false,
+            model: None,
+            provider: None,
+            skill_count: 3,
+        },
+        A {
+            id: "ops".into(),
+            display_name: "运维助手".into(),
+            color: Some("#EF4444".into()),
+            has_avatar: false,
+            avatar_key: None,
+            is_default: false,
+            model: Some("qwen3.7-plus".into()),
+            provider: Some("siliconflow".into()),
+            skill_count: 7,
+        },
     ]
 }
 
 fn initial_projects() -> Vec<ProjectNode> {
     use ProjectNode as P;
+    use RepoNode as R;
+    use LaneGroup as L;
+    use SessionPreview as S;
+
+    let home_sessions = vec![
+        S { id: "s-h1".into(), title: "未归类的临时会话".into(), last_active: "刚刚".into() },
+        S { id: "s-h2".into(), title: "快速问答：Rust 生命周期".into(), last_active: "3m".into() },
+        S { id: "s-h3".into(), title: "对比 iced 与 egui".into(), last_active: "1h".into() },
+    ];
+
+    let core_sessions = vec![
+        S { id: "s-c1".into(), title: "重构布局为 1+3 卡片".into(), last_active: "刚刚".into() },
+        S { id: "s-c2".into(), title: "对齐 Tauri 弹窗逻辑".into(), last_active: "12m".into() },
+        S { id: "s-c3".into(), title: "修复右侧抽屉标题栏".into(), last_active: "2h".into() },
+    ];
+
+    let app_sessions = vec![
+        S { id: "s-a1".into(), title: "接入 session_service".into(), last_active: "5m".into() },
+        S { id: "s-a2".into(), title: "profile_service 单元测试".into(), last_active: "8/16".into() },
+    ];
+
     vec![
+        // Home 桶（无归属会话兜底；恒首、无计数/时间、无右键菜单）
         P {
-            name: "eleve-core".into(),
-            path: "/projects/eleve-core".into(),
-            children: Some(vec![
-                P { name: "src".into(), path: "/projects/eleve-core/src".into(), children: Some(vec![
-                    P { name: "lib.rs".into(), path: "/projects/eleve-core/src/lib.rs".into(), children: None },
-                    P { name: "app.rs".into(), path: "/projects/eleve-core/src/app.rs".into(), children: None },
-                ]) },
-                P { name: "Cargo.toml".into(), path: "/projects/eleve-core/Cargo.toml".into(), children: None },
-            ]),
+            id: "__no_project__".into(),
+            label: "主目录".into(),
+            path: Some("/workspace".into()),
+            color: None,
+            icon: None,
+            is_auto: false,
+            is_no_project: true,
+            session_count: home_sessions.len(),
+            preview_sessions: home_sessions,
+            repos: vec![],
         },
+        // 显式项目：eleve-core（带主题色，含钻取 Repo/Lane/Session 树）
         P {
-            name: "eleve-app".into(),
-            path: "/projects/eleve-app".into(),
-            children: Some(vec![
-                P { name: "session_service.rs".into(), path: "/projects/eleve-app/session_service.rs".into(), children: None },
-                P { name: "profile_service.rs".into(), path: "/projects/eleve-app/profile_service.rs".into(), children: None },
-            ]),
+            id: "eleve-core".into(),
+            label: "eleve-core".into(),
+            path: Some("/projects/eleve-core".into()),
+            color: Some("#3B82F6".into()),
+            icon: None,
+            is_auto: false,
+            is_no_project: false,
+            session_count: core_sessions.len(),
+            preview_sessions: core_sessions.clone(),
+            repos: vec![
+                R {
+                    id: "eleve-core@main".into(),
+                    label: "eleve-core @ main".into(),
+                    session_count: 3,
+                    lanes: vec![
+                        L {
+                            id: "lane-main".into(),
+                            label: "main".into(),
+                            session_count: 2,
+                            sessions: core_sessions.clone(),
+                        },
+                        L {
+                            id: "lane-feat".into(),
+                            label: "feat/tauri-layout".into(),
+                            session_count: 1,
+                            sessions: vec![
+                                S { id: "s-c4".into(), title: "Tauri 式布局分支".into(), last_active: "1h".into() },
+                            ],
+                        },
+                    ],
+                },
+            ],
         },
+        // 显式项目：eleve-app
         P {
-            name: "eleve-gateway".into(),
-            path: "/projects/eleve-gateway".into(),
-            children: None,
+            id: "eleve-app".into(),
+            label: "eleve-app".into(),
+            path: Some("/projects/eleve-app".into()),
+            color: Some("#10B981".into()),
+            icon: None,
+            is_auto: false,
+            is_no_project: false,
+            session_count: app_sessions.len(),
+            preview_sessions: app_sessions.clone(),
+            repos: vec![
+                R {
+                    id: "eleve-app@main".into(),
+                    label: "eleve-app @ main".into(),
+                    session_count: 2,
+                    lanes: vec![
+                        L {
+                            id: "lane-app-main".into(),
+                            label: "main".into(),
+                            session_count: 2,
+                            sessions: app_sessions.clone(),
+                        },
+                    ],
+                },
+            ],
+        },
+        // 自动项目（自动发现，无 db 记录；菜单为 收养/移除）
+        P {
+            id: "eleve-gateway".into(),
+            label: "eleve-gateway".into(),
+            path: Some("/projects/eleve-gateway".into()),
+            color: None,
+            icon: None,
+            is_auto: true,
+            is_no_project: false,
+            session_count: 0,
+            preview_sessions: vec![],
+            repos: vec![],
         },
     ]
 }
@@ -338,10 +551,13 @@ pub fn new() -> (State, iced::Task<Message>) {
             projects: initial_projects(),
             expanded_projects: {
                 let mut s = HashSet::new();
-                s.insert("/projects/eleve-core".to_string());
+                s.insert("eleve-core".to_string());
                 s
             },
-            selected_project: Some("/projects/eleve-core".into()),
+            selected_project: Some("eleve-core".into()),
+            drill_project: None,
+            create_dialog: None,
+            create_input: String::new(),
             fs_root_name: "eleve-iced".into(),
             fs_nodes: initial_fs(),
             expanded_dirs: {
@@ -419,15 +635,88 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
         Message::SelectProfile(id) => {
             state.selected_profile = id;
         }
-        Message::ToggleProject(path) => {
-            if state.expanded_projects.contains(&path) {
-                state.expanded_projects.remove(&path);
+        Message::ToggleProjectExpand(id) => {
+            if state.expanded_projects.contains(&id) {
+                state.expanded_projects.remove(&id);
             } else {
-                state.expanded_projects.insert(path);
+                state.expanded_projects.insert(id);
             }
         }
-        Message::SelectProject(path) => {
-            state.selected_project = Some(path);
+        Message::SelectProject(id) => {
+            // 🔴 点选 = 纯前端激活（对齐 Tauri：高亮不被刷新回跳）
+            state.selected_project = Some(id);
+        }
+        Message::EnterDrill(id) => {
+            state.drill_project = Some(id);
+        }
+        Message::ExitDrill => {
+            state.drill_project = None;
+        }
+        Message::DeleteProfile(id) => {
+            state.profiles.retain(|p| p.id != id);
+            if state.selected_profile == id {
+                state.selected_profile = "default".into();
+            }
+        }
+        Message::DeleteProject(id) => {
+            // 自动发现项目 = 忽略（dismiss）；显式项目 = 删除
+            state.projects.retain(|p| p.id != id);
+            if state.selected_project.as_deref() == Some(id.as_str()) {
+                state.selected_project = None;
+            }
+            if state.drill_project.as_deref() == Some(id.as_str()) {
+                state.drill_project = None;
+            }
+        }
+        Message::OpenCreateDialog(kind) => {
+            state.create_dialog = Some(kind);
+            state.create_input.clear();
+        }
+        Message::CloseCreateDialog => {
+            state.create_dialog = None;
+            state.create_input.clear();
+        }
+        Message::CreateInputChanged(s) => {
+            state.create_input = s;
+        }
+        Message::ConfirmCreate => {
+            let name = state.create_input.trim().to_string();
+            if !name.is_empty() {
+                match state.create_dialog {
+                    Some(CreateDialog::Agent) => {
+                        state.profiles.push(AgentProfile {
+                            id: name.clone(),
+                            display_name: name.clone(),
+                            color: None,
+                            has_avatar: false,
+                            avatar_key: None,
+                            is_default: false,
+                            model: None,
+                            provider: None,
+                            skill_count: 0,
+                        });
+                        state.selected_profile = name;
+                    }
+                    Some(CreateDialog::Project) => {
+                        state.projects.push(ProjectNode {
+                            id: name.clone(),
+                            label: name.clone(),
+                            path: Some(format!("/projects/{}", name)),
+                            color: None,
+                            icon: None,
+                            is_auto: false,
+                            is_no_project: false,
+                            session_count: 0,
+                            preview_sessions: vec![],
+                            repos: vec![],
+                        });
+                        state.selected_project = Some(name);
+                    }
+                    None => {}
+                }
+            }
+            state.create_dialog = None;
+            state.create_input.clear();
         }
         // ── 文件浏览器 ──
         Message::ToggleDir(path) => {
@@ -492,10 +781,13 @@ pub fn view(state: &State) -> Element<'_, Message> {
         })
         .into();
 
-    // 模态弹窗叠加在最上层（暗化背景 + 居中卡片）
+    // 叠加层：模态弹窗（暗化背景 + 居中卡片）、新建弹窗，依次叠在最上层
+    let mut layers: Vec<Element<'_, Message>> = vec![base];
     if let Some(o) = state.overlay {
-        stack![base, overlay::view(state, o)].into()
-    } else {
-        base
+        layers.push(overlay::view(state, o));
     }
+    if let Some(d) = state.create_dialog {
+        layers.push(agents_panel::create_dialog_view(state, d));
+    }
+    stack(layers).into()
 }
