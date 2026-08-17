@@ -2,7 +2,7 @@
 
 > 版本：0.3.0 (Draft)  
 > 日期：2026-08-13  
-> 状态：待讨论
+> 状态：已对照 eleve-iced 实际实现对齐（2026-08-17）：iced 升级至 0.14；ui/ 改为按功能划分；events.rs 推迟至接入后端阶段
 
 ---
 
@@ -95,24 +95,31 @@ eleve-iced 不需要任何中间层，直接调用 eleve-app 的 Service：
 ```
 eleve-iced/
 ├── Cargo.toml
-├── docs/
-│   ├── architecture-design.md      # 架构设计方案
-│   └── architecture-review.md      # 架构审查报告
+├── docs/                       # 设计 / 审查 / 计划文档
+│   ├── architecture-design.md
+│   ├── architecture-review.md
+│   └── ui-development-plan.md
+├── assets/icons/               # lucide 图标（SVG）
 └── src/
-    ├── main.rs          # 入口：初始化 AppService + Iced
-    ├── app.rs           # Iced App 主结构
-    ├── events.rs        # RuntimeEvent 订阅处理
-    └── ui/              # UI 组件
-        ├── mod.rs
-        ├── sidebar.rs   # 左侧面板（会话列表）
-        ├── chat.rs      # 聊天区（消息列表 + 输入框）
-        └── drawer.rs    # 右侧抽屉（详情面板）
+    ├── main.rs                 # 入口：Iced application + 自绘窗体(chrome) + 状态壳 State
+    └── ui/
+        ├── mod.rs              # 数据模型 / Message 枚举 / update / view 顶层编排
+        ├── theme.rs            # 颜色·尺寸·样式单一事实源
+        ├── icon_bar.rs         # 左侧竖向导航（60px，9 导航项 + 设置/主题/关于簇）
+        ├── left_panel.rs       # 左面板调度（Agents / File / Kanban / Cron / Tools / ...）
+        ├── agents_panel.rs     # Agent 侧边栏（ProfilePanel + ProjectTreePanel + 新建弹窗）
+        ├── chat_area.rs        # 中间聊天区（消息列表 + 输入框，常驻）
+        ├── file_browser.rs     # 文件浏览器
+        ├── kanban_panel.rs     # 看板
+        ├── right_drawer.rs     # 右侧抽屉（4 个功能 tab，整体单卡片）
+        ├── overlay.rs          # 模态弹窗（设置 / 主题 / 关于 / 模型选择）
+        └── placeholder.rs      # 未实现 section 的占位视图
 ```
 
 **设计原则**：
 - 扁平结构，避免不必要的层级
 - UI 组件按功能划分，不按技术划分
-- 事件处理单独一个文件，保持 main.rs 简洁
+- 当前为纯 UI mock 阶段：状态壳在 `main.rs`，App 逻辑集中在 `ui/mod.rs`；`RuntimeEvent` 订阅（`events.rs`）推迟到接入 eleve-app 时再做
 
 ---
 
@@ -212,15 +219,16 @@ pub async fn handle_events(
 
 ```toml
 [dependencies]
-# 业务逻辑层（已有，transport-agnostic）
-eleve-app = { path = "../crates/eleve-app" }
-eleve-core = { path = "../crates/eleve-core" }
-
-# UI 框架
-iced = { version = "0.13", features = ["tokio"] }
+# UI 框架（实际采用 iced 0.14；0.13 仅为早期草稿建议，0.14 已稳定且 API 更顺手）
+iced = { version = "0.14", features = ["tokio", "debug", "svg", "image"] }
+iced-window-chrome = "0.1"   # 原生窗口边框/标题栏自绘，使窗体与背板融为一体
 
 # 异步运行时
 tokio = { version = "1", features = ["full"] }
+
+# 业务逻辑层（transport-agnostic，未来接入；当前纯 UI mock 阶段尚未依赖）
+# eleve-app = { path = "../crates/eleve-app" }
+# eleve-core = { path = "../crates/eleve-core" }
 
 # 错误处理
 anyhow = "1"
@@ -332,8 +340,8 @@ tracing-subscriber = "0.3"
 ### 9.3 技术层面
 
 5. **Iced 版本**：0.13 vs 0.14？
-   - 0.13 稳定，0.14 刚发布
-   - 建议：锁定 0.13，等 0.14 稳定后再升级
+   - 0.13 稳定，0.14 已发布且 API 更顺手（如 `Border.radius` 改为 `Radius` 类型、新增 `container::Style.shadow` 可画发光环）
+   - 决定：采用 0.14（已实现并零警告编译通过）；若后续发现 0.14 回归可回退 0.13
 
 6. **渲染后端**：wgpu (Vulkan/DX12) vs tiny-skia (CPU)？
    - wgpu 性能好，但内存占用高
@@ -352,7 +360,7 @@ tracing-subscriber = "0.3"
 
 **附录：参考资源**
 
-- [Iced 官方文档](https://docs.rs/iced/0.13.1/iced/)
+- [Iced 官方文档](https://docs.rs/iced/0.14/iced/)
 - [Iced 示例库](https://github.com/iced-rs/iced/tree/master/examples)
 - [ELEVE 架构分析](./architecture-analysis.md)
 - [eleve-app::AppService](../crates/eleve-app/src/app_service.rs)

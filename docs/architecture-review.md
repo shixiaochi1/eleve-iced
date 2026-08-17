@@ -316,6 +316,12 @@ fn current_time() -> f64 {
 
 ---
 
+## 六、对 eleve-iced（纯 UI 客户端）的说明
+
+> 补充（2026-08-17）：`eleve-iced` 是独立于上述 24 个 crate 之外的**纯 UI 客户端**（iced 0.14 + mock 数据），不继承 eleve-core 的重复代码 / 上帝 crate 问题。后端接入时将直接调用 eleve-app 的 transport-agnostic Service（`SessionService` / `ProfileService` 等），**不引入额外适配层**，类型转换在 UI 组件内部完成。当前为纯 UI mock 阶段，未依赖任何业务 crate。
+
+---
+
 **附录：参考文件**
 
 - 依赖关系详细分析：`subagent-summary-0-20260813_185011_370072.txt`

@@ -2,7 +2,7 @@
 
 > 版本：1.0  
 > 日期：2026-08-13  
-> 状态：待执行
+> 状态：进行中（2026-08-17 对齐实现：iced 0.14；ui/ 按功能划分；IconBar 已完成，chat/drawer 主体完成，左面板其余 section 仍为 placeholder）
 
 ---
 
@@ -16,7 +16,7 @@
 
 **文件**：`src/main.rs`, `src/ui/app.rs`
 
-- [ ] 配置Cargo.toml依赖（iced 0.13）
+- [ ] 配置Cargo.toml依赖（iced 0.14；0.13 仅为早期草稿建议）
 - [ ] 实现基础Iced App结构
 - [ ] 1+3布局骨架（IconBar + ChatArea + Drawer）
 - [ ] 窗口能弹出来，显示基本布局
@@ -103,4 +103,4 @@
 - [架构设计方案](./architecture-design.md)
 - [架构审查报告](./architecture-review.md)
 - [Tauri版本源码](../eleve-chat-desktop/src/)
-- [Iced官方文档](https://docs.rs/iced/0.13.1/iced/)
+- [Iced官方文档](https://docs.rs/iced/0.14/iced/)
