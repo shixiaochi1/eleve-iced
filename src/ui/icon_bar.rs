@@ -1,26 +1,47 @@
+// 图标栏（左侧竖向导航，60px）—— 对齐 Tauri IconBar.tsx
+// 点击行为严格分三类：
+//   · Logo / Agent / 看板 / 定时 / 工具 / 学习 / 频道 / 用量 / 调试 → 左面板 (ToggleLeftPanel)
+//   · 文件 → 右侧抽屉 (ToggleFiles)
+//   · 设置 / 主题 / 关于 → 模态弹窗 (OpenOverlay)
+
 use iced::widget::{button, column, container, rule, Svg, Space};
-use iced::{Element, Background, Length, Border, Gradient, Padding};
+use iced::{Element, Background, Length, Border, Padding};
 
-use crate::ui::{Message, NavSection};
-use super::theme;
+use crate::ui::{LeftPanel, Message, RightTab, State, theme};
 
-// Base path for assets (resolved at compile time so it works regardless of cwd)
 const ASSET_BASE: &str = env!("CARGO_MANIFEST_DIR");
 
 fn asset_path(name: &str) -> std::path::PathBuf {
     std::path::PathBuf::from(ASSET_BASE).join("assets/icons").join(format!("{}.svg", name))
 }
 
-pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
-    let logo_btn = logo_button();
-    let nav_items = column(nav_buttons(active_section)).spacing(3);
+pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
+    let logo_active = state.active_panel == Some(LeftPanel::Gateway);
+    let files_active = state.right_open && state.right_tab == RightTab::Files;
+
+    let logo_btn = icon_button("Elogo", logo_active, Message::ToggleLeftPanel(LeftPanel::Gateway), "网关状态");
+
+    let nav_items = column![
+        icon_button("users", state.active_panel == Some(LeftPanel::Agents), Message::ToggleLeftPanel(LeftPanel::Agents), "Agent"),
+        icon_button("folder-git-2", files_active, Message::ToggleFiles, "文件浏览器"),
+        icon_button("layout-grid", state.active_panel == Some(LeftPanel::Kanban), Message::ToggleLeftPanel(LeftPanel::Kanban), "看板"),
+        icon_button("clock", state.active_panel == Some(LeftPanel::Cron), Message::ToggleLeftPanel(LeftPanel::Cron), "定时任务"),
+        icon_button("wrench", state.active_panel == Some(LeftPanel::Tools), Message::ToggleLeftPanel(LeftPanel::Tools), "工具"),
+        icon_button("book-open", state.active_panel == Some(LeftPanel::Learning), Message::ToggleLeftPanel(LeftPanel::Learning), "学习"),
+        icon_button("radio", state.active_panel == Some(LeftPanel::Channels), Message::ToggleLeftPanel(LeftPanel::Channels), "频道"),
+        icon_button("chart-column", state.active_panel == Some(LeftPanel::Usage), Message::ToggleLeftPanel(LeftPanel::Usage), "用量分析"),
+        icon_button("bug", state.active_panel == Some(LeftPanel::Debug), Message::ToggleLeftPanel(LeftPanel::Debug), "调试"),
+    ]
+    .spacing(3)
+    .align_x(iced::Alignment::Center);
 
     let bottom_items = column![
-        nav_icon("settings", NavSection::Settings, active_section),
-        nav_icon("palette", NavSection::Theme, active_section),
-        nav_icon("info", NavSection::About, active_section),
+        icon_button("settings", false, Message::OpenOverlay(crate::ui::Overlay::Settings), "设置"),
+        icon_button("palette", false, Message::OpenOverlay(crate::ui::Overlay::Theme), "主题"),
+        icon_button("info", false, Message::OpenOverlay(crate::ui::Overlay::About), "关于"),
     ]
-    .spacing(2);
+    .spacing(2)
+    .align_x(iced::Alignment::Center);
 
     let content = column![
         logo_btn,
@@ -47,53 +68,16 @@ pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
         .into()
 }
 
-fn logo_button<'a>() -> iced::widget::Button<'a, Message, iced::Theme, iced::Renderer> {
-    button(
-        Svg::from_path(asset_path("Elogo"))
-            .width(Length::Fixed(theme::LOGO_ICON_SIZE))
-            .height(Length::Fixed(theme::LOGO_ICON_SIZE)),
-    )
-    .width(Length::Fixed(theme::ICON_BTN_SIZE))
-    .height(Length::Fixed(theme::ICON_BTN_SIZE))
-    .padding(0)
-    .style(|_theme: &iced::Theme, status| {
-        let is_active = matches!(status, iced::widget::button::Status::Hovered);
-        iced::widget::button::Style {
-            background: if is_active {
-                Some(Background::Color(theme::BG_HOVER))
-            } else {
-                None
-            },
-            border: Border { radius: 10.0.into(), ..Default::default() },
-            ..Default::default()
-        }
-    })
-    .on_press(Message::NavigateTo(NavSection::Agent))
-}
-
-fn nav_buttons<'a>(active_section: &'a NavSection) -> Vec<Element<'a, Message>> {
-    vec![
-        nav_icon("users", NavSection::Agent, active_section),
-        nav_icon("folder-git-2", NavSection::Files, active_section),
-        nav_icon("layout-grid", NavSection::Kanban, active_section),
-        nav_icon("clock", NavSection::Cron, active_section),
-        nav_icon("wrench", NavSection::Tools, active_section),
-        nav_icon("book-open", NavSection::Learn, active_section),
-        nav_icon("radio", NavSection::Channels, active_section),
-        nav_icon("chart-column", NavSection::Usage, active_section),
-        nav_icon("bug", NavSection::Debug, active_section),
-    ]
-}
-
-fn nav_icon<'a>(
+/// 通用图标按钮：is_active 时填充强调色渐变 + 指示条；hover 时浅色背景
+fn icon_button<'a>(
     icon_name: &'static str,
-    section: NavSection,
-    active_section: &'a NavSection,
+    is_active: bool,
+    on_press: Message,
+    tooltip: &'static str,
 ) -> Element<'a, Message> {
-    let is_active = section == *active_section;
     let icon_color = if is_active { theme::TEXT_ON_ACCENT } else { theme::TEXT_MUTED };
 
-    button(
+    let btn = button(
         Svg::from_path(asset_path(icon_name))
             .width(Length::Fixed(theme::ICON_SIZE))
             .height(Length::Fixed(theme::ICON_SIZE))
@@ -106,7 +90,7 @@ fn nav_icon<'a>(
         let is_hovered = matches!(status, iced::widget::button::Status::Hovered);
         if is_active {
             iced::widget::button::Style {
-                background: Some(Background::Gradient(Gradient::Linear(
+                background: Some(Background::Gradient(iced::Gradient::Linear(
                     iced::gradient::Linear::new(iced::Degrees(180.0))
                         .add_stop(0.0, theme::ACCENT)
                         .add_stop(1.0, theme::ACCENT_HOVER),
@@ -127,8 +111,23 @@ fn nav_icon<'a>(
             }
         }
     })
-    .on_press(Message::NavigateTo(section))
-    .into()
+    .on_press(on_press);
+
+    // 激活态右侧指示条（对齐 Tauri indicator）
+    let _ = tooltip;
+    if is_active {
+        column![
+            btn,
+            container(Space::new().width(Length::Fixed(3.0)).height(Length::Fixed(16.0)))
+                .style(|_: &iced::Theme| container::Style {
+                    background: Some(Background::Color(theme::TEXT_ON_ACCENT)),
+                    border: Border { radius: 2.0.into(), ..Default::default() },
+                    ..Default::default()
+                }),
+        ]
+        .align_x(iced::Alignment::Center)
+        .into()
+    } else {
+        column![btn].align_x(iced::Alignment::Center).into()
+    }
 }
-
-

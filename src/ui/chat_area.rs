@@ -1,8 +1,8 @@
-// Chat area — 严格对齐 Tauri App.tsx L1420-1643 完整布局
-// Tauri 结构（从上到下）：
+// Chat area — 对齐 Tauri App.tsx / ToolStatusBar / ContextBar / InputArea
+// 结构（从上到下）：
 //   chat-card (rounded-12, bg-card, flex-col, flex:1)
 //     ToolStatusBar (h-10, px-4, border-b) — Bot图标 + 状态文字
-//     MessageContainer (flex-1) — 空态 / 虚拟滚动消息
+//     MessageContainer (flex-1) — 空态 / 消息列表
 //     ContextBar — [+ 新建会话] [言格] [DeepSeek] [MoA] ··· [tokens] [百分比] [开始时间]
 //                  进度条
 //     InputArea (composer-surface) — 控制行：[≡] [+] [🎤] [🚫] [模型] [模式] [⚡] [🌐] ··· [发送]
@@ -10,6 +10,7 @@
 use iced::widget::{button, column, container, row, scrollable, text, text_input, Space, Svg, rule};
 use iced::{Element, Length, Background, Border, Alignment, Color, Padding};
 use std::path::PathBuf;
+
 // Base path for assets (resolved at compile time so it works regardless of cwd)
 const ASSET_BASE: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -17,22 +18,21 @@ fn asset_path(name: &str) -> PathBuf {
     PathBuf::from(ASSET_BASE).join("assets/icons").join(format!("{}.svg", name))
 }
 
-use crate::ui::{Message, NavSection, theme};
+use crate::ui::{ChatMessage, Message, State, theme};
 
 // ============================================================
-// View — 聊天区主入口 (对应 Tauri chat-card)
+// View — 聊天区主入口
 // ============================================================
 
-pub fn view<'a>(_active_section: &'a NavSection) -> Element<'a, Message> {
+pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     let tool_status = tool_status_bar_view();
-    let messages = messages_view();
+    let messages = messages_view(state);
     let context_bar = context_bar_view();
-    let input_area = input_area_view();
+    let input_area = input_area_view(state);
 
     let content = column![
         tool_status,     // h-10=40px
         messages,        // flex-1
-        // ContextBar、进度条、输入框统一左12px右12px对齐，间距4px
         container(column![
             context_bar,
             progress_bar_view(),
@@ -60,8 +60,6 @@ pub fn view<'a>(_active_section: &'a NavSection) -> Element<'a, Message> {
 
 // ============================================================
 // ToolStatusBar — 对齐 Tauri ToolStatusBar.tsx
-// Tauri: flex items-center h-10 px-4 border-b border-border gap-2
-// 左: Bot icon (14px) + 状态文字
 // ============================================================
 
 fn tool_status_bar_view<'a>() -> Element<'a, Message> {
@@ -88,8 +86,6 @@ fn tool_status_bar_view<'a>() -> Element<'a, Message> {
             snap: true,
         });
 
-    // Tauri: flex items-center h-10 px-4 border-b
-    // column 内: row 填满上方空间并垂直居中内容，separator 贴在底部
     column![
         container(row![left, Space::new().width(Length::Fill).height(Length::Shrink)]
             .spacing(8)
@@ -98,7 +94,7 @@ fn tool_status_bar_view<'a>() -> Element<'a, Message> {
         .height(Length::Fill),
         separator,
     ]
-    .height(Length::Fixed(44.0)) // 比 40px 多 4px 呼吸空间，但不会太远
+    .height(Length::Fixed(44.0))
     .padding(Padding::new(6.0).right(16.0).bottom(0.0).left(16.0))
     .spacing(0)
     .into()
@@ -108,14 +104,13 @@ fn tool_status_bar_view<'a>() -> Element<'a, Message> {
 // Messages area — 对齐 Tauri MessageContainer
 // ============================================================
 
-fn messages_view<'a>() -> Element<'a, Message> {
-    let has_messages = false;
-
-    if !has_messages {
+fn messages_view<'a>(state: &'a State) -> Element<'a, Message> {
+    if state.messages.is_empty() {
         return empty_state_view();
     }
 
-    let messages: Vec<Element<'a, Message>> = mock_messages()
+    let messages: Vec<Element<'a, Message>> = state
+        .messages
         .iter()
         .map(message_bubble)
         .collect();
@@ -136,7 +131,6 @@ fn empty_state_view<'a>() -> Element<'a, Message> {
     .align_y(Alignment::Center);
 
     let center = column![
-        // Tauri: w-16 h-16 (64px)
         Svg::from_path(asset_path("Elogo"))
             .width(Length::Fixed(64.0))
             .height(Length::Fixed(64.0)),
@@ -159,23 +153,12 @@ fn empty_state_view<'a>() -> Element<'a, Message> {
 
 // ============================================================
 // ContextBar — 对齐 Tauri ContextBar.tsx
-// Tauri: flex items-center justify-between px-3 py-1.5
-//   左: [+ 新建会话] [言格/模式切换] [DeepSeek] [MoA开关]
-//   右: 30.2k / 1.0M tokens · 2.0% · 0秒前
-//   进度条: h-1 mx-3 mt-0.5
 // ============================================================
 
 fn context_bar_view<'a>() -> Element<'a, Message> {
-    // [+ 新建会话] — h-7=28px, px-2.5=10px, rounded-md
     let new_session_btn = nav_btn("+", "新建会话");
-
-    // [言格] 模式切换按钮
     let mode_btn = nav_btn_small("言格");
-
-    // [DeepSeek] 按钮
     let deepseek_btn = deepseek_button();
-
-    // [MoA] 开关
     let moa_btn = moa_toggle();
 
     let left = row![new_session_btn, mode_btn, deepseek_btn, moa_btn]
@@ -191,14 +174,13 @@ fn context_bar_view<'a>() -> Element<'a, Message> {
     .align_y(Alignment::Center);
 
     let info_row = row![left, Space::new().width(Length::Fill).height(Length::Shrink), info_right]
-        .padding(Padding::new(0.0)) // padding 由外层 container 的 left(12)/right(12) 统一控制
         .align_y(Alignment::Center);
 
     column![info_row].into()
 }
 
 // ============================================================
-// ProgressBar — 两端圆角，对齐输入框
+// ProgressBar
 // ============================================================
 
 fn progress_bar_view<'a>() -> Element<'a, Message> {
@@ -215,16 +197,11 @@ fn progress_bar_view<'a>() -> Element<'a, Message> {
 
 // ============================================================
 // InputArea — 对齐 Tauri InputArea.tsx
-// Tauri: composer-surface (rounded-2xl=16px, border)
-//   textarea (bg-transparent, px-1, pt-1, pb-0.5, text-sm=14px)
-//   控制行: gap-1=4px
-//     左: [≡ 命令] [+] 附件 [🎤 语音] [🚫 静音] [模型下拉] [标准模式] [⚡ 快速] [🌐 联网]
-//     右: [发送↑] (圆形, bg-primary, size-7.5=30px)
-// CSS: pad-x=8px, pad-y=5px, row-gap=4px
 // ============================================================
 
-fn input_area_view<'a>() -> Element<'a, Message> {
-    // 控制行 — 左侧按钮组 (对齐 Tauri size-(--composer-control-size)=28px, 但图标本身很小)
+fn input_area_view<'a>(state: &'a State) -> Element<'a, Message> {
+    let has_text = !state.input.trim().is_empty();
+
     let control_left = row![
         icon_btn("menu", "命令菜单"),
         icon_btn("plus", "附件"),
@@ -238,9 +215,6 @@ fn input_area_view<'a>() -> Element<'a, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    // 发送按钮 — Tauri: size-7.5=30px, bg-foreground(白), arrow-up 16px
-    // 🔴 Iced SVG 渲染: SVG 的 width/height 属性会覆盖 .width()/.height()
-    // 正确做法: 让 SVG 自动撑满，按钮控制尺寸
     let send_btn = button(
         container(
             Svg::from_path(asset_path("arrow-up"))
@@ -258,21 +232,23 @@ fn input_area_view<'a>() -> Element<'a, Message> {
     .width(Length::Fixed(30.0))
     .height(Length::Fixed(30.0))
     .padding(6)
-    .style(|_: &iced::Theme, status| {
+    .style(move |_: &iced::Theme, status| {
         let hovered = matches!(status, iced::widget::button::Status::Hovered);
         iced::widget::button::Style {
-            background: if hovered {
-                Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.94, 0.85)))
+            background: if has_text {
+                if hovered {
+                    Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.94, 0.85)))
+                } else {
+                    Some(Background::Color(theme::TEXT_PRIMARY))
+                }
             } else {
-                Some(Background::Color(theme::TEXT_PRIMARY))
+                Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.95, 0.30)))
             },
-            border: Border {
-                radius: 15.0.into(),
-                ..Default::default()
-            },
+            border: Border { radius: 15.0.into(), ..Default::default() },
             ..Default::default()
         }
-    });
+    })
+    .on_press(Message::SendPressed);
 
     let control_row = row![
         control_left,
@@ -282,11 +258,11 @@ fn input_area_view<'a>() -> Element<'a, Message> {
     .spacing(12)
     .align_y(Alignment::Center);
 
-    // 输入框 — 透明背景
-    let textarea = text_input("向 Eleve 发送消息… (Enter 发送, / 命令)", "")
+    let textarea = text_input("向 Eleve 发送消息… (Enter 发送, / 命令)", &state.input)
         .padding(6)
         .size(14)
         .width(Length::Fill)
+        .on_input(Message::InputChanged)
         .style(|_: &iced::Theme, _: iced::widget::text_input::Status| iced::widget::text_input::Style {
             background: Background::Color(Color::TRANSPARENT),
             border: Border::default(),
@@ -298,9 +274,8 @@ fn input_area_view<'a>() -> Element<'a, Message> {
 
     let inner = column![textarea, control_row]
         .spacing(4)
-        .padding([5, 8]); // pad-y=5px, pad-x=8px
+        .padding([5, 8]);
 
-    // composer-surface
     container(inner)
         .width(Length::Fill)
         .style(|_: &iced::Theme| iced::widget::container::Style {
@@ -374,10 +349,6 @@ fn nav_btn_small<'a>(label: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-// ============================================================
-// Helper: DeepSeek 按钮
-// ============================================================
-
 fn deepseek_button<'a>() -> Element<'a, Message> {
     let bot_icon = Svg::from_path(asset_path("bot"))
         .width(Length::Fixed(14.0))
@@ -389,40 +360,30 @@ fn deepseek_button<'a>() -> Element<'a, Message> {
     button(row![bot_icon, text("DeepSeek").size(12).color(theme::TEXT_MUTED)].spacing(4))
         .padding([4, 10])
         .height(Length::Fixed(28.0))
-        .style(|_: &iced::Theme, status| {
-            let _hovered = matches!(status, iced::widget::button::Status::Hovered);
-            iced::widget::button::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 6.0.into(),
-                    width: 1.0,
-                    color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
-                },
-                ..Default::default()
-            }
+        .style(|_: &iced::Theme, _status| iced::widget::button::Style {
+            background: Some(Background::Color(theme::BG_CARD)),
+            border: Border {
+                radius: 6.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
+            },
+            ..Default::default()
         })
         .into()
 }
-
-// ============================================================
-// Helper: MoA 开关
-// ============================================================
 
 fn moa_toggle<'a>() -> Element<'a, Message> {
     button(text("MoA").size(12).color(theme::TEXT_MUTED))
         .padding([4, 8])
         .height(Length::Fixed(28.0))
-        .style(|_: &iced::Theme, status| {
-            let _hovered = matches!(status, iced::widget::button::Status::Hovered);
-            iced::widget::button::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 6.0.into(),
-                    width: 1.0,
-                    color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
-                },
-                ..Default::default()
-            }
+        .style(|_: &iced::Theme, _status| iced::widget::button::Style {
+            background: Some(Background::Color(theme::BG_CARD)),
+            border: Border {
+                radius: 6.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
+            },
+            ..Default::default()
         })
         .into()
 }
@@ -485,75 +446,43 @@ fn icon_btn_small<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a,
         .into()
 }
 
-// ============================================================
-// Helper: 模型选择 pill
-// ============================================================
-
 fn model_pill<'a>(model: &'static str) -> Element<'a, Message> {
     button(text(model).size(11).color(theme::TEXT_MUTED))
         .padding([2, 6])
         .height(Length::Fixed(24.0))
-        .style(|_: &iced::Theme, status| {
-            let _hovered = matches!(status, iced::widget::button::Status::Hovered);
-            iced::widget::button::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 4.0.into(),
-                    width: 1.0,
-                    color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
-                },
-                ..Default::default()
-            }
+        .style(|_: &iced::Theme, _status| iced::widget::button::Style {
+            background: Some(Background::Color(theme::BG_CARD)),
+            border: Border {
+                radius: 4.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
+            },
+            ..Default::default()
         })
         .into()
 }
-
-// ============================================================
-// Helper: 模式 pill
-// ============================================================
 
 fn mode_pill<'a>(mode: &'static str) -> Element<'a, Message> {
     button(text(mode).size(11).color(theme::TEXT_MUTED))
         .padding([2, 6])
         .height(Length::Fixed(24.0))
-        .style(|_: &iced::Theme, status| {
-            let _hovered = matches!(status, iced::widget::button::Status::Hovered);
-            iced::widget::button::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 4.0.into(),
-                    width: 1.0,
-                    color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
-                },
-                ..Default::default()
-            }
+        .style(|_: &iced::Theme, _status| iced::widget::button::Style {
+            background: Some(Background::Color(theme::BG_CARD)),
+            border: Border {
+                radius: 4.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.06),
+            },
+            ..Default::default()
         })
         .into()
 }
 
 // ============================================================
-// Mock data
+// Message bubble
 // ============================================================
 
-struct MockMessage {
-    role: &'static str,
-    content: &'static str,
-}
-
-fn mock_messages() -> Vec<MockMessage> {
-    vec![
-        MockMessage {
-            role: "user",
-            content: "你好，请介绍一下你自己",
-        },
-        MockMessage {
-            role: "assistant",
-            content: "你好！我是 ELEVE Agent，一个基于 Rust 构建的 AI 智能体。我可以帮你写代码、分析数据、自动化任务等。有什么我可以帮你的吗？",
-        },
-    ]
-}
-
-fn message_bubble<'a>(msg: &MockMessage) -> Element<'a, Message> {
+fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
     let is_user = msg.role == "user";
     let bg = if is_user {
         Color::from_rgb(0.23, 0.30, 0.45)
@@ -566,7 +495,7 @@ fn message_bubble<'a>(msg: &MockMessage) -> Element<'a, Message> {
         iced::alignment::Horizontal::Left
     };
 
-    let bubble = container(text(msg.content).size(13).color(theme::TEXT_PRIMARY))
+    let bubble = container(text(&msg.content).size(13).color(theme::TEXT_PRIMARY))
         .padding(12)
         .style(move |_: &iced::Theme| iced::widget::container::Style {
             background: Some(Background::Color(bg)),

@@ -1,35 +1,21 @@
-use iced::widget::{column, container, text};
+// 左侧面板容器 —— 对齐 Tauri SidePanel.tsx
+// 根据 active_panel 渲染不同分区内容；聊天区始终在右侧常驻。
+// Agents / Kanban 用专属模块；其余分区（cron/tools/learning/channels/usage/debug/gateway）
+// 用 placeholder 的 section_view。
+
 use iced::{Element, Length};
 
-use crate::ui::{Message, NavSection, theme};
+use crate::ui::{agents_panel, kanban_panel, placeholder, LeftPanel, Message, State, theme};
 
-pub fn view<'a>(active_section: &'a NavSection) -> Element<'a, Message> {
-    let name = panel_title(active_section);
-    let header = container(text(name).size(14).color(theme::TEXT_PRIMARY))
-        .padding([12, 16]);
-    let body = container(text("面板内容 - 待实现").size(12).color(theme::TEXT_MUTED))
-        .padding([4, 16]);
+pub fn view<'a>(state: &'a State, panel: LeftPanel) -> Element<'a, Message> {
+    let inner: Element<'a, Message> = match panel {
+        LeftPanel::Agents => agents_panel::view(state),
+        LeftPanel::Kanban => kanban_panel::view(state),
+        other => placeholder::section_view(state, other),
+    };
 
-    container(column![header, body])
+    iced::widget::container(inner)
         .width(Length::Fixed(theme::LEFT_PANEL_WIDTH))
         .height(Length::Fill)
-        .style(theme::card_style())
         .into()
-}
-
-fn panel_title(section: &NavSection) -> &'static str {
-    match section {
-        NavSection::Files => "文件浏览器",
-        NavSection::Kanban => "看板",
-        NavSection::Cron => "定时任务",
-        NavSection::Tools => "工具",
-        NavSection::Learn => "学习",
-        NavSection::Channels => "频道",
-        NavSection::Usage => "用量分析",
-        NavSection::Debug => "调试",
-        NavSection::Settings => "设置",
-        NavSection::Theme => "主题",
-        NavSection::About => "关于",
-        NavSection::Agent => "",
-    }
 }

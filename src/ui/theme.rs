@@ -2,7 +2,7 @@
 // Theme — 全局颜色、尺寸、样式常量（单一真相源）
 // ============================================================
 
-use iced::{Color, Border, Background};
+use iced::{Color, Border, Background, Padding};
 
 // Colors
 pub const BG_BACKBOARD: Color = Color::from_rgb(0.08, 0.09, 0.10);
@@ -18,12 +18,11 @@ pub const SEPARATOR: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.08);
 // Dimensions
 pub const CARD_RADIUS: f32 = 12.0;
 pub const CARD_GAP: f32 = 8.0;
-pub const LEFT_PANEL_WIDTH: f32 = 260.0;
-pub const DRAWER_WIDTH: f32 = 280.0;
+pub const LEFT_PANEL_WIDTH: f32 = 280.0;
+pub const RIGHT_DRAWER_WIDTH: f32 = 380.0;
 pub const ICON_BAR_WIDTH: f32 = 60.0;
 pub const ICON_BTN_SIZE: f32 = 40.0;
 pub const ICON_SIZE: f32 = 20.0;
-pub const LOGO_ICON_SIZE: f32 = 24.0;
 pub const NAV_ICON_PADDING: f32 = 10.0; // (ICON_BTN_SIZE - ICON_SIZE) / 2
 pub const ICON_BAR_PADDING: f32 = 8.0;  // top/bottom of icon bar content
 
@@ -38,4 +37,9 @@ pub fn card_style() -> impl Fn(&iced::Theme) -> iced::widget::container::Style {
         },
         ..Default::default()
     }
+}
+
+// 四方向 padding 构造（iced 0.14 的 Padding 不支持 [t,r,b,l] 四元素数组字面量）
+pub fn pad(t: f32, r: f32, b: f32, l: f32) -> Padding {
+    Padding { top: t, right: r, bottom: b, left: l }
 }
