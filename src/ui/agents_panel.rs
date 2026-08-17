@@ -20,8 +20,8 @@ use std::path::PathBuf;
 
 use iced::border::Radius;
 use iced::widget::{
-    button, column, container, hover, row, rule, scrollable, text, text_input, MouseArea, Space,
-    Svg,
+    button, column, container, hover, row, rule, scrollable, stack, text, text_input, MouseArea,
+    Space, Svg,
 };
 use iced::{
     Alignment, Background, Border, Color, Element, Font, Length, Shadow, Vector,
@@ -802,25 +802,35 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
             },
             ..Default::default()
         });
-    let card_capture = MouseArea::new(card).on_press(Message::Dismiss);
+    // 背景层：全屏暗化 + 点背景关闭（on_press=CloseCreateDialog）
+    let backdrop = MouseArea::new(
+        container(Space::new())
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(Background::Color(Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.5,
+                })),
+                ..Default::default()
+            }),
+    )
+    .on_press(Message::CloseCreateDialog);
 
-    // 暗化背景全屏覆盖；点背景关闭，点卡片不关闭（内层 MouseArea 已吞掉卡片点击）
-    let dim = container(card_capture)
+    // 卡片层：与背景【兄弟叠加】（stack 中后者在上），而非嵌套在背景 MouseArea 内。
+    // 卡片外包一层 MouseArea(on_press=Dismiss，无操作) 仅用于“捕获卡片自身点击、阻止穿透到背景关闭”；
+    // 内部 text_input / 取消 / 创建 均为独立交互控件，点击时由它们优先捕获（button 先 capture 事件），
+    // 不受外层干扰——修复“新建后不出现卡片 / 无法输入”的根因。
+    let card_capture = MouseArea::new(card).on_press(Message::Dismiss);
+    let card_layer = container(card_capture)
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(Color {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 0.5,
-            })),
-            ..Default::default()
-        });
+        .center_y(Length::Fill);
 
-    MouseArea::new(dim).on_press(Message::CloseCreateDialog).into()
+    stack![backdrop, card_layer].into()
 }
 
 fn close_x<'a>() -> Element<'a, Message> {

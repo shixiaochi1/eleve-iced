@@ -811,3 +811,42 @@ pub fn view(state: &State) -> Element<'_, Message> {
     }
     stack(layers).into()
 }
+
+// ── 单元测试：验证“打开弹窗 → 输入 → 确认创建”确实把卡片写入 State ──
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn confirm_create_agent_adds_card() {
+        let (mut state, _) = new();
+        let before = state.profiles.len();
+        let _ = update(&mut state, Message::OpenCreateDialog(CreateDialog::Agent));
+        let _ = update(&mut state, Message::CreateInputChanged("mytest".into()));
+        let _ = update(&mut state, Message::ConfirmCreate);
+        assert_eq!(state.profiles.len(), before + 1);
+        assert_eq!(state.profiles.last().unwrap().id, "mytest");
+        assert!(state.create_dialog.is_none(), "弹窗应在创建后关闭");
+    }
+
+    #[test]
+    fn confirm_create_project_adds_card() {
+        let (mut state, _) = new();
+        let before = state.projects.len();
+        let _ = update(&mut state, Message::OpenCreateDialog(CreateDialog::Project));
+        let _ = update(&mut state, Message::CreateInputChanged("projx".into()));
+        let _ = update(&mut state, Message::ConfirmCreate);
+        assert_eq!(state.projects.len(), before + 1);
+        assert_eq!(state.projects.last().unwrap().id, "projx");
+    }
+
+    #[test]
+    fn confirm_create_empty_name_is_noop() {
+        let (mut state, _) = new();
+        let before = state.profiles.len();
+        let _ = update(&mut state, Message::OpenCreateDialog(CreateDialog::Agent));
+        let _ = update(&mut state, Message::CreateInputChanged("   ".into()));
+        let _ = update(&mut state, Message::ConfirmCreate);
+        assert_eq!(state.profiles.len(), before, "空名称不应创建卡片");
+    }
+}

@@ -113,21 +113,7 @@ fn icon_button<'a>(
     })
     .on_press(on_press);
 
-    // 激活态右侧指示条（对齐 Tauri indicator）
+    // 激活态仅以按钮自身的强调色渐变背景指示（不再额外绘制竖向白条指示条）
     let _ = tooltip;
-    if is_active {
-        column![
-            btn,
-            container(Space::new().width(Length::Fixed(3.0)).height(Length::Fixed(16.0)))
-                .style(|_: &iced::Theme| container::Style {
-                    background: Some(Background::Color(theme::TEXT_ON_ACCENT)),
-                    border: Border { radius: 2.0.into(), ..Default::default() },
-                    ..Default::default()
-                }),
-        ]
-        .align_x(iced::Alignment::Center)
-        .into()
-    } else {
-        column![btn].align_x(iced::Alignment::Center).into()
-    }
+    btn.into()
 }
