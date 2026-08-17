@@ -4,7 +4,7 @@
 //   · Theme / About / Model : 带标题栏 + 关闭 X
 // 内部点击不关闭（Dismiss 阻止穿透），仅背景 / 关闭按钮 / ESC 关闭。
 
-use iced::widget::{button, column, container, row, stack, text, Space};
+use iced::widget::{button, column, container, row, stack, text, MouseArea, Space};
 use iced::{Element, Background, Length, Border, Alignment, Color};
 
 use crate::ui::{placeholder, Message, Overlay, State, theme};
@@ -83,11 +83,10 @@ fn settings_card<'a>(state: &'a State) -> Element<'a, Message> {
 
 // ── 卡片外壳：圆角 + 边框 + 内部点击不关闭 ──
 fn card_shell<'a>(inner: Element<'a, Message>, w: f32, h: f32) -> Element<'a, Message> {
-    button(inner)
+    let card = container(inner)
         .width(Length::Fixed(w))
         .height(Length::Fixed(h))
-        .padding(0)
-        .style(|_: &iced::Theme, _s: iced::widget::button::Status| iced::widget::button::Style {
+        .style(|_: &iced::Theme| container::Style {
             background: Some(Background::Color(theme::BG_CARD)),
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
@@ -95,10 +94,10 @@ fn card_shell<'a>(inner: Element<'a, Message>, w: f32, h: f32) -> Element<'a, Me
                 color: theme::SEPARATOR,
             },
             ..Default::default()
-        })
-        // 关键：卡片捕获点击，阻止穿透到背景（Dismiss = 无操作）
-        .on_press(Message::Dismiss)
-        .into()
+        });
+    // 卡片捕获点击，阻止穿透到背景（Dismiss = 无操作）；
+    // 用 MouseArea 而非 button，避免内部按钮/开关被外层 button 吞掉事件。
+    MouseArea::new(card).on_press(Message::Dismiss).into()
 }
 
 fn icon_close<'a>() -> Element<'a, Message> {

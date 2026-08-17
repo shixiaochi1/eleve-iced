@@ -20,7 +20,8 @@ use std::path::PathBuf;
 
 use iced::border::Radius;
 use iced::widget::{
-    button, column, container, row, rule, scrollable, text, text_input, MouseArea, Space, Svg,
+    button, column, container, hover, row, rule, scrollable, text, text_input, MouseArea, Space,
+    Svg,
 };
 use iced::{
     Alignment, Background, Border, Color, Element, Font, Length, Shadow, Vector,
@@ -38,14 +39,19 @@ const SEP_LIGHT: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.06); // 预览会话�
 // ───────────────────────────────────────────────────────────
 
 pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
+    // 整体单一滚动：AGENT 区 + 分隔线 + 项目区 同处一个 scrollable，
+    // 卡片很多时右侧只出现一个滚动条（避免两段各自滚动、割裂体验）。
     let content = column![
         profiles_section(state),
         rule_h(),
         projects_section(state),
     ]
-    .height(Length::Fill);
+    .spacing(0)
+    .width(Length::Fill);
 
-    container(content)
+    let scroller = scrollable(content).width(Length::Fill).height(Length::Fill);
+
+    container(scroller)
         .width(Length::Fill)
         .height(Length::Fill)
         .style(theme::card_style())
@@ -347,79 +353,78 @@ fn profile_card<'a>(state: &'a State, p: &'a AgentProfile) -> Element<'a, Messag
     let selected = state.selected_profile == p.id;
     let accent = theme::accent_of(&p.color);
 
-    // 头像：24px 圆角透明容器 + 主题色 Bot 图标
-    let avatar = agent_avatar(accent);
+    // mk_inner：构建卡片主体（头像 + 名称行 + 元信息行 + 右侧弹性留白）
+    let mk_inner = move || -> Element<'a, Message> {
+        // 头像：24px 圆角透明容器 + 主题色 Bot 图标
+        let avatar = agent_avatar(accent);
 
-    // 名称行：display_name (+ (id) 静音) + 默认徽标
-    let mut name_row_items: Vec<Element<'a, Message>> = vec![
-        text(&p.display_name)
-            .size(13)
-            .font(bold_font())
-            .color(theme::TEXT_PRIMARY)
-            .into(),
-    ];
-    if p.display_name != p.id {
-        name_row_items.push(
-            text(format!("({})", p.id))
-                .size(10)
-                .color(theme::with_alpha(theme::TEXT_MUTED, 0.6))
+        // 名称行：display_name (+ (id) 静音) + 默认徽标（仅默认 Agent 显示，数据驱动差异）
+        let mut name_row_items: Vec<Element<'a, Message>> = vec![
+            text(&p.display_name)
+                .size(13)
+                .font(bold_font())
+                .color(theme::TEXT_PRIMARY)
                 .into(),
-        );
-    }
-    if p.is_default {
-        name_row_items.push(default_badge());
-    }
-    let name_row = row(name_row_items).spacing(6.0).align_y(Alignment::Center);
+        ];
+        if p.display_name != p.id {
+            name_row_items.push(
+                text(format!("({})", p.id))
+                    .size(10)
+                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.6))
+                    .into(),
+            );
+        }
+        if p.is_default {
+            name_row_items.push(default_badge());
+        }
+        let name_row = row(name_row_items).spacing(6.0).align_y(Alignment::Center);
 
-    // 元信息行：Cpu/Plug/Package（flex-nowrap 等高）
-    let mut meta: Vec<Element<'a, Message>> = Vec::new();
-    match &p.model {
-        Some(m) => meta.push(meta_chip("cpu", m.clone())),
-        None => meta.push(
-            text("未配置模型")
-                .size(10)
-                .color(theme::with_alpha(theme::TEXT_MUTED, 0.4))
-                .into(),
-        ),
-    }
-    if let Some(pr) = &p.provider {
-        meta.push(meta_chip("plug", pr.clone()));
-    }
-    meta.push(meta_chip("package", format!("{}", p.skill_count)));
-    let meta_row = row(meta).spacing(8.0).align_y(Alignment::Center);
+        // 元信息行：Cpu/Plug/Package（flex-nowrap 等高）
+        let mut meta: Vec<Element<'a, Message>> = Vec::new();
+        match &p.model {
+            Some(m) => meta.push(meta_chip("cpu", m.clone())),
+            None => meta.push(
+                text("未配置模型")
+                    .size(10)
+                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.4))
+                    .into(),
+            ),
+        }
+        if let Some(pr) = &p.provider {
+            meta.push(meta_chip("plug", pr.clone()));
+        }
+        meta.push(meta_chip("package", format!("{}", p.skill_count)));
+        let meta_row = row(meta).spacing(8.0).align_y(Alignment::Center);
 
-    let body = column![name_row, meta_row].spacing(6.0);
-    let inner = row![avatar, body].spacing(6.0).align_y(Alignment::Center);
+        let body = column![name_row, meta_row].spacing(6.0);
+        let header: Element<'a, Message> = row![avatar, body]
+            .spacing(6.0)
+            .align_y(Alignment::Center)
+            .into();
+        let spacer: Element<'a, Message> = Space::new().width(Length::Fill).into();
+        let inner: Element<'a, Message> = row![header, spacer]
+            .spacing(6.0)
+            .align_y(Alignment::Center)
+            .into();
+        inner
+    };
 
-    // 主体选择区（button；hover = accent/30 淡底反馈）
-    let sel = button(inner)
-        .width(Length::Fill)
-        .padding(theme::pad(8.0, 10.0, 8.0, 7.0))
-        .style(move |_: &iced::Theme, s| {
-            let bg = match s {
-                button::Status::Hovered | button::Status::Pressed => {
-                    Some(Background::Color(theme::with_alpha(accent, 0.30)))
-                }
-                _ => None,
-            };
-            button::Style {
-                background: bg,
-                border: Border::default(),
-                ..Default::default()
-            }
-        })
-        .on_press(Message::SelectProfile(p.id.clone()));
+    // mk_actions：默认 Agent 不可删（数据驱动差异）；删除按钮仅在 hover 整卡时出现
+    let mk_actions = move || -> Vec<Element<'a, Message>> {
+        if !p.is_default {
+            vec![delete_button(p.id.clone())]
+        } else {
+            vec![]
+        }
+    };
 
-    // 删除按钮（默认 Agent 不可删；hover 转危险红）
-    let mut card_items: Vec<Element<'a, Message>> = vec![accent_bar(selected, accent), sel.into()];
-    if !p.is_default {
-        card_items.push(delete_button(p.id.clone()));
-    }
-
-    container(row(card_items).spacing(0.0).align_y(Alignment::Center))
-        .padding(theme::pad(0.0, 8.0, 0.0, 0.0))
-        .style(profile_card_style(selected, accent))
-        .into()
+    card_frame(
+        selected,
+        accent,
+        mk_inner,
+        mk_actions,
+        Message::SelectProfile(p.id.clone()),
+    )
 }
 
 // ───────────────────────────────────────────────────────────
@@ -444,9 +449,10 @@ fn overview_view<'a>(state: &'a State) -> Element<'a, Message> {
     let cards: Vec<Element<'a, Message>> =
         state.projects.iter().map(|p| project_card(state, p)).collect();
 
-    scrollable(column(cards).spacing(6).padding(theme::pad(2.0, 8.0, 10.0, 8.0)))
-        .width(Length::Fill)
-        .height(Length::Fill)
+    // 不再单独滚动：整体滚动由 AgentsPanel::view 的 scrollable 统一承担
+    column(cards)
+        .spacing(6)
+        .padding(theme::pad(2.0, 8.0, 10.0, 8.0))
         .into()
 }
 
@@ -456,57 +462,13 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
     let selected = state.selected_project.as_deref() == Some(p.id.as_str());
     let is_open = state.expanded_projects.contains(&p.id);
 
-    // 展开箭头（常驻；对齐 Tauri TreeToggle，默认展开）
-    let chevron = button(svg_icon(
-        if is_open { "chevron-down" } else { "chevron-right" },
-        14.0,
-        theme::TEXT_MUTED,
-    ))
-    .style(|_: &iced::Theme, s| {
-        let bg = match s {
-            button::Status::Hovered | button::Status::Pressed => {
-                Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.30)))
-            }
-            _ => None,
-        };
-        button::Style {
-            background: bg,
-            border: Border::default(),
-            ..Default::default()
-        }
-    })
-    .on_press(Message::ToggleProjectExpand(p.id.clone()));
-
-    let icon_box = lead_icon_box(p);
-
-    // 名称行：箭头 + 图标芯片 + 标签 + (非 Home) 计数 + (非 Home) 时间 + (非 Home) 更多
-    let mut name_row_items: Vec<Element<'a, Message>> = vec![
-        chevron.into(),
-        icon_box,
-        text(&p.label).size(13).font(bold_font()).color(theme::TEXT_PRIMARY).into(),
-    ];
-    if !p.is_no_project {
-        if p.session_count > 0 {
-            name_row_items.push(muted_chip(format!("{}", p.session_count)));
-        }
-        name_row_items.push(
-            text(&p.last_active)
-                .size(10)
-                .color(theme::with_alpha(theme::TEXT_MUTED, 0.5))
-                .into(),
-        );
-        name_row_items.push(kebab_button(p.id.clone()));
-    }
-    let name_row = row(name_row_items).spacing(6.0).align_y(Alignment::Center);
-
-    // 主体选择区（button；hover = accent/30 淡底反馈）
-    let mut col_items: Vec<Element<'a, Message>> = vec![name_row.into()];
-    if is_open {
-        col_items.push(preview_block(p, state.active_session.as_deref()));
-    }
-    let sel = button(column(col_items).spacing(0.0))
-        .width(Length::Fill)
-        .padding(theme::pad(8.0, 8.0, 8.0, 7.0))
+    let mk_inner = move || -> Element<'a, Message> {
+        // 展开箭头（常驻；hover 提亮；独立按钮，不嵌套在选中层内，避免事件被吞）
+        let chevron = button(svg_icon(
+            if is_open { "chevron-down" } else { "chevron-right" },
+            14.0,
+            theme::TEXT_MUTED,
+        ))
         .style(|_: &iced::Theme, s| {
             let bg = match s {
                 button::Status::Hovered | button::Status::Pressed => {
@@ -520,23 +482,65 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
                 ..Default::default()
             }
         })
-        .on_press(Message::SelectProject(p.id.clone()));
+        .on_press(Message::ToggleProjectExpand(p.id.clone()));
 
-    // 自动项目：extra 标记（仅视觉）
-    let mut card_items: Vec<Element<'a, Message>> = vec![accent_bar(selected, accent), sel.into()];
-    if p.is_auto {
-        // 自动徽标作为兄弟（视觉提示），不参与事件
-        card_items.push(
-            container(auto_badge())
-                .padding(theme::pad(0.0, 4.0, 0.0, 0.0))
+        let icon_box = lead_icon_box(p);
+
+        // 名称行：箭头 + 图标芯片 + 标签 + (自动徽标) + (非 Home) 计数 + (非 Home) 时间
+        let mut name_items: Vec<Element<'a, Message>> = vec![
+            chevron.into(),
+            icon_box,
+            text(&p.label)
+                .size(13)
+                .font(bold_font())
+                .color(theme::TEXT_PRIMARY)
                 .into(),
-        );
-    }
+        ];
+        if !p.is_no_project {
+            if p.is_auto {
+                name_items.push(auto_badge());
+            }
+            if p.session_count > 0 {
+                name_items.push(muted_chip(format!("{}", p.session_count)));
+            }
+            name_items.push(
+                text(&p.last_active)
+                    .size(10)
+                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.5))
+                    .into(),
+            );
+        }
+        let name_row = row(name_items).spacing(6.0).align_y(Alignment::Center);
 
-    container(row(card_items).spacing(0.0).align_y(Alignment::Center))
-        .padding(theme::pad(0.0, 8.0, 0.0, 0.0))
-        .style(project_card_style(selected))
-        .into()
+        let header_items: Vec<Element<'a, Message>> =
+            vec![name_row.into(), Space::new().width(Length::Fill).into()];
+        let header = row(header_items).spacing(6.0).align_y(Alignment::Center);
+
+        // 主体：header (+ 展开态预览)
+        let mut inner_items: Vec<Element<'a, Message>> = vec![header.into()];
+        if is_open {
+            inner_items.push(preview_block(p, state.active_session.as_deref()));
+        }
+        let inner = column(inner_items).spacing(0.0);
+        inner.into()
+    };
+
+    // mk_actions：更多按钮（kebab）仅 hover 整卡时出现（Home 桶无菜单）
+    let mk_actions = move || -> Vec<Element<'a, Message>> {
+        if !p.is_no_project {
+            vec![kebab_button(p.id.clone())]
+        } else {
+            vec![]
+        }
+    };
+
+    card_frame(
+        selected,
+        accent,
+        mk_inner,
+        mk_actions,
+        Message::SelectProject(p.id.clone()),
+    )
 }
 
 /// 展开态下的会话预览（Top N，对齐 Hermes PROJECT_PREVIEW_COUNT）
@@ -636,9 +640,11 @@ fn drill_view<'a>(state: &'a State, project_id: &str) -> Element<'a, Message> {
         header,
         rule_h(),
         column(repos).spacing(10.0).padding(theme::pad(6.0, 4.0, 10.0, 4.0)),
-    ];
+    ]
+    .width(Length::Fill);
 
-    scrollable(body).width(Length::Fill).height(Length::Fill).into()
+    // 不再单独滚动：整体滚动由 AgentsPanel::view 的 scrollable 统一承担
+    body.into()
 }
 
 fn drill_repo<'a>(repo: &'a RepoNode) -> Element<'a, Message> {
@@ -775,11 +781,15 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
     ]
     .spacing(14.0);
 
-    // 卡片本身是一个 button（on_press=Dismiss 仅用于消费事件，避免点卡片关闭弹窗）
-    let card = button(card_content)
-        .style(|_: &iced::Theme, _: button::Status| button::Style {
+    // 卡片：用 container 承载（切勿用 button 包裹！否则 text_input / 内部按钮被外层 button 吞掉事件，
+    // 导致无法输入、无法点击——这是之前“新建项目卡片”严重 BUG 的根因）。
+    // 外层 MouseArea(on_press=Dismiss) 仅用于捕获卡片点击、阻止穿透到背景（Dismiss 为无操作）；
+    // 内部 text_input / 取消 / 创建 各自正常工作。
+    let card = container(card_content)
+        .width(Length::Fixed(360.0))
+        .padding(theme::pad(18.0, 18.0, 18.0, 18.0))
+        .style(|_: &iced::Theme| container::Style {
             background: Some(Background::Color(theme::BG_ELEVATED)),
-            text_color: theme::TEXT_PRIMARY,
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
                 width: 1.0,
@@ -791,11 +801,11 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
                 blur_radius: 24.0,
             },
             ..Default::default()
-        })
-        .on_press(Message::Dismiss);
+        });
+    let card_capture = MouseArea::new(card).on_press(Message::Dismiss);
 
-    // 暗化背景全屏覆盖；点背景关闭，点卡片不关闭
-    let dim = container(card)
+    // 暗化背景全屏覆盖；点背景关闭，点卡片不关闭（内层 MouseArea 已吞掉卡片点击）
+    let dim = container(card_capture)
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x(Length::Fill)
@@ -838,6 +848,8 @@ fn close_x<'a>() -> Element<'a, Message> {
 /// Agent 删除按钮：hover 转危险红（对齐 Tauri hover:text-destructive hover:bg-destructive/10）
 fn delete_button<'a>(id: String) -> Element<'a, Message> {
     button(svg_icon("trash-2", 14.0, theme::with_alpha(theme::TEXT_MUTED, 0.5)))
+        .width(Length::Fixed(28.0))
+        .height(Length::Fixed(28.0))
         .style(move |_: &iced::Theme, s| {
             let (bg, col) = match s {
                 button::Status::Hovered | button::Status::Pressed => (
@@ -864,6 +876,8 @@ fn kebab_button<'a>(id: String) -> Element<'a, Message> {
         15.0,
         theme::with_alpha(theme::TEXT_MUTED, 0.6),
     ))
+    .width(Length::Fixed(28.0))
+    .height(Length::Fixed(28.0))
     .style(move |_: &iced::Theme, s| {
         let (bg, col) = match s {
             button::Status::Hovered | button::Status::Pressed => (
@@ -887,8 +901,9 @@ fn kebab_button<'a>(id: String) -> Element<'a, Message> {
 // 卡片容器样式
 // ───────────────────────────────────────────────────────────
 
-/// Agent 卡片：常驻 30% 强调色描边；选中 = 10% 淡底 + 45% 描边 + 重投影
-fn profile_card_style(
+/// 通用卡片 chrome：选中 = 10% 淡底 + 45% 描边 + 重投影；未选中 = 浅卡片底 + 30% 描边 + 微投影
+/// Agent 与 Project 卡片共用此样式，差异仅由 accent / selected 数据驱动（不重复造轮子）。
+fn card_chrome(
     selected: bool,
     accent: Color,
 ) -> impl Fn(&iced::Theme) -> container::Style {
@@ -919,31 +934,40 @@ fn profile_card_style(
     }
 }
 
-/// 项目卡片：chrome 统一用主题 primary（Tauri 定稿：项目卡片描边/竖条/投影=主题色）
-fn project_card_style(selected: bool) -> impl Fn(&iced::Theme) -> container::Style {
-    move |_| {
-        if selected {
-            container::Style {
-                background: Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.10))),
-                border: Border {
-                    radius: 10.0.into(),
-                    width: 1.0,
-                    color: theme::with_alpha(theme::ACCENT, 0.45),
-                },
-                shadow: card_shadow(true),
-                ..Default::default()
-            }
+/// 通用卡片外壳：左侧发光竖条 + 主体(inner) + 整卡点击选中（MouseArea）
+/// 尾部操作（删除 / 更多）仅在鼠标悬停【整卡】时出现（hover 切换），平时以等宽占位预留，避免布局抖动。
+/// 通过闭包 mk_inner / mk_actions 构建，规避 Element 不可 Clone 的限制；
+/// Agent 与 Project 卡片共用此组件——差异完全由传入的数据（accent / 内容 / 操作）决定，不重复造轮子。
+fn card_frame<'a>(
+    selected: bool,
+    accent: Color,
+    mk_inner: impl Fn() -> Element<'a, Message> + 'a,
+    mk_actions: impl Fn() -> Vec<Element<'a, Message>> + 'a,
+    select: Message,
+) -> Element<'a, Message> {
+    let build = |show: bool| -> Element<'a, Message> {
+        let actions = mk_actions();
+        let n = actions.len();
+        let mut items: Vec<Element<'a, Message>> = vec![
+            accent_bar(selected, accent),
+            container(MouseArea::new(mk_inner()).on_press(select.clone()))
+                .padding(theme::pad(0.0, 0.0, 0.0, 7.0)) // 与左侧发光竖条留出间距
+                .into(),
+        ];
+        if show {
+            items.extend(actions);
         } else {
-            container::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 10.0.into(),
-                    width: 1.0,
-                    color: theme::with_alpha(theme::ACCENT, 0.30),
-                },
-                shadow: card_shadow(false),
-                ..Default::default()
+            // 预留等宽占位，hover 出现按钮时不引起布局抖动
+            for _ in 0..n {
+                items.push(Space::new().width(Length::Fixed(28.0)).into());
             }
         }
-    }
+        container(
+            row(items).spacing(0.0).align_y(Alignment::Center),
+        )
+        .padding(theme::pad(0.0, 8.0, 0.0, 0.0)) // 仅右侧留白；竖条贴左缘（对齐 Tauri）
+        .style(card_chrome(selected, accent))
+        .into()
+    };
+    hover(build(false), build(true)).into()
 }
