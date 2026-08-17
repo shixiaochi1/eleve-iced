@@ -15,6 +15,9 @@ pub const ACCENT: Color = Color::from_rgb(0.38, 0.53, 0.89);
 pub const ACCENT_HOVER: Color = Color { r: 0.38, g: 0.53, b: 0.89, a: 0.7 };
 pub const SEPARATOR: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.08);
 pub const BG_MUTED: Color = Color::from_rgb(0.20, 0.21, 0.23); // 图标芯片 / 次级底色
+pub const BG_ELEVATED: Color = Color::from_rgb(0.17, 0.18, 0.20); // 弹窗/浮层底色（高于卡片）
+pub const DESTRUCTIVE: Color = Color::from_rgb(0.86, 0.27, 0.27); // 删除/危险操作（对齐 Tauri --theme-destructive）
+pub const SHADOW_HEAVY: Color = Color::from_rgba(0.0, 0.0, 0.0, 0.45); // 选中卡片投影（对齐 Tauri --theme-shadow-color-heavy）
 #[allow(dead_code)] // 激活会话标记（对齐 Tauri accent-orange），聊天/会话高亮将复用
 pub const ACCENT_ORANGE: Color = Color::from_rgb(0.95, 0.62, 0.20); // 激活会话标记（对齐 Tauri accent-orange）
 
@@ -106,9 +109,10 @@ pub fn primary_pill(
         background: Some(Background::Color(bg)),
         text_color: TEXT_ON_ACCENT,
         border: Border {
+            // 顶部高光描边（近似 Tauri 的 inset 0 1px 0 rgba(255,255,255,0.25) 玻璃质感）
             radius: 999.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
+            width: 1.0,
+            color: with_alpha(Color::WHITE, 0.18),
         },
         shadow,
         ..Default::default()

@@ -123,6 +123,9 @@ pub struct RepoNode {
 pub struct ProjectNode {
     pub id: String,
     pub label: String,
+    /// 数据模型字段：对齐 Tauri ProjectNode.path（用于钻取/外部打开仓库）。
+    /// 侧边栏卡片本身不渲染路径，故仅参与数据构造、暂不读取。
+    #[allow(dead_code)]
     pub path: Option<String>,
     pub color: Option<String>,
     pub icon: Option<String>,
@@ -130,6 +133,8 @@ pub struct ProjectNode {
     /// Home 桶（无归属会话兜底；恒首、无右键菜单）
     pub is_no_project: bool,
     pub session_count: usize,
+    /// 卡片右侧时间（已格式化 "刚刚"/"3m"/"2h"/"8/17"；Home 桶为空）
+    pub last_active: String,
     /// 总览模式预览会话（Top3，对齐 Hermes PROJECT_PREVIEW_COUNT）
     pub preview_sessions: Vec<SessionPreview>,
     /// 钻取模式全量水合（Repo → Lane → Session）
@@ -251,6 +256,7 @@ pub struct State {
     pub projects: Vec<ProjectNode>,
     pub expanded_projects: HashSet<String>, // 按 id（overview 展开态）
     pub selected_project: Option<String>,   // 激活项目 id（含 __no_project__）
+    pub active_session: Option<String>,     // 激活会话 id（预览/钻取中橙色高亮，对齐 Tauri accent-orange）
     pub drill_project: Option<String>,      // 钻取视图中的项目 id
     pub create_dialog: Option<CreateDialog>,
     pub create_input: String,
@@ -384,6 +390,7 @@ fn initial_projects() -> Vec<ProjectNode> {
             is_auto: false,
             is_no_project: true,
             session_count: home_sessions.len(),
+            last_active: String::new(),
             preview_sessions: home_sessions,
             repos: vec![],
         },
@@ -397,6 +404,7 @@ fn initial_projects() -> Vec<ProjectNode> {
             is_auto: false,
             is_no_project: false,
             session_count: core_sessions.len(),
+            last_active: "2h".into(),
             preview_sessions: core_sessions.clone(),
             repos: vec![
                 R {
@@ -432,6 +440,7 @@ fn initial_projects() -> Vec<ProjectNode> {
             is_auto: false,
             is_no_project: false,
             session_count: app_sessions.len(),
+            last_active: "8/16".into(),
             preview_sessions: app_sessions.clone(),
             repos: vec![
                 R {
@@ -459,6 +468,7 @@ fn initial_projects() -> Vec<ProjectNode> {
             is_auto: true,
             is_no_project: false,
             session_count: 0,
+            last_active: "—".into(),
             preview_sessions: vec![],
             repos: vec![],
         },
@@ -552,9 +562,11 @@ pub fn new() -> (State, iced::Task<Message>) {
             expanded_projects: {
                 let mut s = HashSet::new();
                 s.insert("eleve-core".to_string());
+                s.insert("__no_project__".to_string());
                 s
             },
             selected_project: Some("eleve-core".into()),
+            active_session: Some("s-c1".into()),
             drill_project: None,
             create_dialog: None,
             create_input: String::new(),
@@ -644,7 +656,14 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
         }
         Message::SelectProject(id) => {
             // 🔴 点选 = 纯前端激活（对齐 Tauri：高亮不被刷新回跳）
-            state.selected_project = Some(id);
+            state.selected_project = Some(id.clone());
+            // 激活项目首条预览会话 → 橙色高亮（对齐 Tauri 预览区 active 行）
+            state.active_session = state
+                .projects
+                .iter()
+                .find(|p| p.id == id)
+                .and_then(|p| p.preview_sessions.first())
+                .map(|s| s.id.clone());
         }
         Message::EnterDrill(id) => {
             state.drill_project = Some(id);
@@ -707,6 +726,7 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
                             is_auto: false,
                             is_no_project: false,
                             session_count: 0,
+                            last_active: "刚刚".into(),
                             preview_sessions: vec![],
                             repos: vec![],
                         });
