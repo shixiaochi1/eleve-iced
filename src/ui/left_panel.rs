@@ -17,5 +17,6 @@ pub fn view<'a>(state: &'a State, panel: LeftPanel) -> Element<'a, Message> {
     iced::widget::container(inner)
         .width(Length::Fixed(theme::LEFT_PANEL_WIDTH))
         .height(Length::Fill)
+        .style(theme::card_style()) // 左栏整体 = 一只浮在背板上的圆角卡片（对齐 Tauri .side-panel-card，1+3 布局的卡片1）
         .into()
 }

@@ -826,10 +826,12 @@ pub fn view(state: &State) -> Element<'_, Message> {
 
     let center = row(children).spacing(theme::CARD_GAP);
 
-    let base = container(row![icon_bar, center])
+    let base = container(row![icon_bar, center].spacing(theme::CARD_GAP))
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(Padding::new(0.0).right(theme::CARD_GAP).bottom(theme::CARD_GAP))
+        // 1+3 布局：暗背板为底，三张卡片（左栏卡 / 聊天卡 / 右抽屉卡）浮在其上，
+        // 四周留 CARD_GAP 边距、卡片间留 CARD_GAP 间距（对齐 Tauri 的 pane 卡片浮起风格）
+        .padding(Padding::new(theme::CARD_GAP))
         .style(|_: &iced::Theme| container::Style {
             background: Some(Background::Color(theme::BG_BACKBOARD)),
             ..Default::default()

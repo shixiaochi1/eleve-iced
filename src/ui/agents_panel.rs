@@ -60,9 +60,10 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     container(scroller)
         .width(Length::Fill)
         .height(Length::Fill)
-        // 面板底色用更暗的 BG_BACKBOARD，让卡片(BG_CARD)浮在其上、彼此以暗缝分隔（对齐 Tauri 卡片坐在更暗面板底）
+        // 面板底色透明：坐在外层左侧栏卡片(BG_CARD)上，对齐 Tauri 的 side-panel-card
+        // （面板与卡片同底，靠卡片边框 + 间距 + 轻微提亮区分，而非暗缝）
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_BACKBOARD)),
+            background: None,
             ..Default::default()
         })
         .into()
