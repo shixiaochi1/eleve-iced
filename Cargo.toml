@@ -9,7 +9,7 @@ description = "Native desktop GUI for ELEVE Agent, built with Iced"
 
 [dependencies]
 # UI framework
-iced = { version = "0.14", features = ["tokio", "debug", "svg", "image", "advanced"] }
+iced = { version = "0.14", features = ["tokio", "debug", "svg", "image", "advanced", "markdown"] }
 iced-window-chrome = "0.1"
 
 # Async runtime

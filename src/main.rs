@@ -18,6 +18,7 @@ fn main() -> iced::Result {
     iced::application(boot, update, view)
         .theme(iced::Theme::Dark)
         .window(window_settings())
+        .title("Eleve Agent")
         .subscription(subscription)
         .run()
 }
@@ -108,7 +109,9 @@ fn view(state: &State) -> Element<'_, Message> {
 }
 
 fn subscription(state: &State) -> iced::Subscription<Message> {
-    iced_window_chrome::subscription(state.chrome.clone()).map(Message::Chrome)
+    let chrome = iced_window_chrome::subscription(state.chrome.clone()).map(Message::Chrome);
+    let stream = ui::streaming_subscription(state.ui.as_ref().unwrap()).map(Message::Ui);
+    iced::Subscription::batch([chrome, stream])
 }
 
 fn window_settings() -> iced::window::Settings {

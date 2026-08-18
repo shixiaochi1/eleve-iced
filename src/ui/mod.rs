@@ -13,7 +13,9 @@ use std::collections::{HashMap, HashSet};
 
 use iced::advanced::widget::{operate, operation::scrollable::snap_to};
 use iced::widget::{container, row, stack, Id};
-use iced::{Element, Length, Padding, Background};
+use iced::{Element, Length, Padding, Background, Subscription};
+use iced::time;
+use std::time::Duration;
 
 /// Agents 面板滚动容器 id（新建卡片后用于 snap_to 顶部，确保新卡片立即可见）
 pub const AGENTS_PANEL_SCROLL_ID: &str = "agents-panel-scroll";
@@ -90,6 +92,18 @@ pub enum ChatBlock {
         status: ToolStatus,
         result: String,
     },
+    /// AI 思考过程（可折叠）。summary 为折叠态的一句话摘要，detail 为展开后的完整思考内容（Markdown）。
+    Thinking {
+        summary: String,
+        detail: String,
+    },
+}
+
+/// 流式输出状态：把 full 逐步 reveal 到 shown 个字符
+#[derive(Debug, Clone)]
+pub struct Streaming {
+    pub full: String,
+    pub shown: usize, // 已显示的「字符数」（非字节）
 }
 
 /// 工具调用状态
@@ -258,6 +272,11 @@ pub enum Message {
     // ── 聊天区 ──
     InputChanged(String),
     SendPressed,
+    LinkClicked(String),   // Markdown 链接点击
+    ToggleThinking(usize), // 折叠/展开某条消息的思考过程（按消息下标）
+    StreamTick,            // 流式输出推进
+    CaretTick,             // 流式光标闪烁
+    Noop,
 
     // ── Agent 左侧栏 ──
     SelectProfile(String),
@@ -297,6 +316,11 @@ pub struct State {
     // 聊天区
     pub input: String,
     pub messages: Vec<ChatMessage>,
+    // 流式输出
+    pub streaming: Option<Streaming>,
+    pub caret_on: bool,
+    // 思考过程折叠（按消息下标）
+    pub thinking_collapsed: HashSet<usize>,
 
     // Agent 左侧栏
     pub profiles: Vec<AgentProfile>,
@@ -330,9 +354,9 @@ fn initial_messages() -> Vec<ChatMessage> {
         },
         ChatMessage {
             role: "assistant".into(),
-            blocks: vec![ChatBlock::Text(
-                "你好！我是 ELEVE Agent，一个基于 Rust 构建的 AI 智能体。我可以帮你写代码、分析数据、自动化任务等。有什么我可以帮你的吗？".into(),
-            )],
+            blocks: parse_message_content(
+                "你好！我是 **ELEVE Agent**，一个基于 `Rust` 构建的 AI 智能体。\n\n我可以帮你做这些事：\n\n- 编写与重构代码\n- 分析数据并生成图表\n- 自动化重复任务\n\n更多能力见 [官方文档](https://eleve.agent.dev)。有什么我可以帮你的吗？",
+            ),
         },
         ChatMessage {
             role: "user".into(),
@@ -340,8 +364,20 @@ fn initial_messages() -> Vec<ChatMessage> {
         },
         ChatMessage {
             role: "assistant".into(),
+            blocks: vec![
+                ChatBlock::Thinking {
+                    summary: "分析 Tauri 的三类弹出形态，决定 iced 前端的布局调度策略。".into(),
+                    detail: "需要先梳理 Tauri 的导航模型：\n\n1. **左侧面板** —— 聊天区常驻，点击图标栏在左侧出现分区内容。\n2. **右侧抽屉** —— 文件 / 终端 / 预览 / 产物四个 tab。\n3. **模态弹窗** —— 全屏居中 + 暗化背景（设置 / 主题 / 关于）。\n\n据此，iced 端应当保留「主聊天区」为核心，其余均为覆盖层。".into(),
+                },
+                ChatBlock::Text(
+                    "Tauri 的设计是：主聊天区永远常驻，左侧图标栏的点击分为三类——打开左侧面板、切换右侧抽屉、弹出模态窗口。".into(),
+                ),
+            ],
+        },
+        ChatMessage {
+            role: "assistant".into(),
             blocks: parse_message_content(
-                "好的。Tauri 的设计是：主聊天区永远常驻，左侧图标栏的点击分为三类——打开左侧面板、切换右侧抽屉、弹出模态窗口。\n\n我会先读取当前项目结构：\n\n```rust\nlet layout = Layout::new()\n    .with_sidebar(true)\n    .with_right_drawer(true);\n```\n\n然后逐步重构 iced 前端。",
+                "我会先读取当前项目结构：\n\n```rust\nlet layout = Layout::new()\n    .with_sidebar(true)\n    .with_right_drawer(true);\n```\n\n然后逐步重构 iced 前端。",
             ),
         },
         ChatMessage {
@@ -399,6 +435,31 @@ pub fn parse_message_content(text: &str) -> Vec<ChatBlock> {
     }
 
     blocks
+}
+
+/// 在系统默认浏览器中打开 URL（用于 Markdown 链接点击）。
+fn open_url(url: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/c", "start", "", url])
+            .status();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(url).status();
+    }
+}
+
+/// 流式输出 + 光标闪烁订阅：仅在 streaming 进行中激活。
+pub fn streaming_subscription(state: &State) -> Subscription<Message> {
+    if state.streaming.is_some() {
+        let stream = time::every(Duration::from_millis(24)).map(|_| Message::StreamTick);
+        let caret = time::every(Duration::from_millis(530)).map(|_| Message::CaretTick);
+        Subscription::batch([stream, caret])
+    } else {
+        Subscription::none()
+    }
 }
 
 fn initial_profiles() -> Vec<AgentProfile> {
@@ -662,6 +723,9 @@ pub fn new() -> (State, iced::Task<Message>) {
             overlay: None,
             input: String::new(),
             messages: initial_messages(),
+            streaming: None,
+            caret_on: true,
+            thinking_collapsed: HashSet::new(),
             profiles: initial_profiles(),
             selected_profile: "default".into(),
             projects: initial_projects(),
@@ -745,11 +809,17 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
             if !text.is_empty() {
                 let user_blocks = parse_message_content(&text);
                 state.messages.push(ChatMessage { role: "user".into(), blocks: user_blocks });
-                let reply = format!("（演示）已收到你的消息：「{}」。这是一段模拟回复，后端接入后将由真实 Agent 生成。", text);
+                // 占位 assistant 消息，随后由流式订阅逐步填充
                 state.messages.push(ChatMessage {
                     role: "assistant".into(),
-                    blocks: vec![ChatBlock::Text(reply)],
+                    blocks: vec![ChatBlock::Text(String::new())],
                 });
+                let reply = format!(
+                    "（演示）已收到你的消息：「{}」。\n\n这是一段**模拟回复**，后端接入后将由真实 Agent 生成。支持：\n\n- **Markdown** 行内样式\n- `行内代码`\n- [可点击链接](https://eleve.agent.dev)\n\n流式输出动画正在演示中…",
+                    text
+                );
+                state.streaming = Some(Streaming { full: reply, shown: 0 });
+                state.caret_on = true;
                 state.input.clear();
                 return operate(snap_to(
                     Id::new(CHAT_SCROLL_ID),
@@ -757,6 +827,59 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
                 ));
             }
         }
+        // ── 聊天：链接 / 思考折叠 / 流式 ──
+        Message::LinkClicked(url) => {
+            let url = url.clone();
+            return iced::Task::perform(async move { open_url(&url); }, |_| Message::Noop);
+        }
+        Message::ToggleThinking(idx) => {
+            if state.thinking_collapsed.contains(&idx) {
+                state.thinking_collapsed.remove(&idx);
+            } else {
+                state.thinking_collapsed.insert(idx);
+            }
+        }
+        Message::StreamTick => {
+            if let Some(s) = &mut state.streaming {
+                let total = s.full.chars().count();
+                let step = 3usize;
+                if s.shown + step >= total {
+                    let full = s.full.clone();
+                    state.messages.last_mut().map(|m| m.blocks = parse_message_content(&full));
+                    state.streaming = None;
+                    state.caret_on = false;
+                } else {
+                    s.shown += step;
+                    let mut partial: String = s.full.chars().take(s.shown).collect();
+                    if state.caret_on {
+                        partial.push('▍');
+                    }
+                    state.messages.last_mut().map(|m| m.blocks = parse_message_content(&partial));
+                }
+                return operate(snap_to(
+                    Id::new(CHAT_SCROLL_ID),
+                    iced::widget::scrollable::RelativeOffset::END.into(),
+                ));
+            }
+        }
+        Message::CaretTick => {
+            if state.streaming.is_some() {
+                state.caret_on = !state.caret_on;
+                if let Some(s) = &state.streaming {
+                    let mut partial: String = s.full.chars().take(s.shown).collect();
+                    if state.caret_on {
+                        partial.push('▍');
+                    }
+                    state.messages.last_mut().map(|m| m.blocks = parse_message_content(&partial));
+                }
+                return operate(snap_to(
+                    Id::new(CHAT_SCROLL_ID),
+                    iced::widget::scrollable::RelativeOffset::END.into(),
+                ));
+            }
+        }
+        Message::Noop => {}
+
         // ── Agent 左侧栏 ──
         Message::SelectProfile(id) => {
             state.selected_profile = id;

@@ -7,7 +7,8 @@
 //                  进度条
 //     InputArea (composer-surface) — 控制行：[≡] [+] [🎤] [🚫] [模型] [模式] [⚡] [🌐] ··· [发送]
 
-use iced::widget::{button, column, container, row, scrollable, text, text_input, Space, Svg, rule, Id};
+use iced::widget::{button, column, container, row, scrollable, text, text_input, Space, Svg, rule, Id, rich_text};
+use iced::widget::text::Span;
 use iced::{Element, Length, Background, Border, Alignment, Color, Padding};
 use std::path::PathBuf;
 
@@ -18,7 +19,7 @@ fn asset_path(name: &str) -> PathBuf {
     PathBuf::from(ASSET_BASE).join("assets/icons").join(format!("{}.svg", name))
 }
 
-use crate::ui::{ChatBlock, ChatMessage, Message, State, ToolStatus, theme, CHAT_SCROLL_ID};
+use crate::ui::{ChatBlock, Message, State, ToolStatus, theme, CHAT_SCROLL_ID};
 
 // ============================================================
 // View — 聊天区主入口
@@ -112,7 +113,8 @@ fn messages_view<'a>(state: &'a State) -> Element<'a, Message> {
     let messages: Vec<Element<'a, Message>> = state
         .messages
         .iter()
-        .map(message_bubble)
+        .enumerate()
+        .map(|(i, _)| message_bubble(state, i))
         .collect();
 
     scrollable(column(messages).spacing(8))
@@ -483,7 +485,8 @@ fn mode_pill<'a>(mode: &'static str) -> Element<'a, Message> {
 // Message bubble
 // ============================================================
 
-fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
+fn message_bubble<'a>(state: &'a State, msg_index: usize) -> Element<'a, Message> {
+    let msg = &state.messages[msg_index];
     let is_user = msg.role == "user";
     let bg = if is_user {
         Color::from_rgb(0.23, 0.30, 0.45)
@@ -496,10 +499,12 @@ fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
         iced::alignment::Horizontal::Left
     };
 
+    let collapsed = state.thinking_collapsed.contains(&msg_index);
+
     let block_elements: Vec<Element<'a, Message>> = msg
         .blocks
         .iter()
-        .map(|block| render_block(block))
+        .map(|block| render_block(block, msg_index, collapsed))
         .collect();
 
     let bubble = container(column(block_elements).spacing(8))
@@ -524,12 +529,282 @@ fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
         .into()
 }
 
-fn render_block<'a>(block: &'a ChatBlock) -> Element<'a, Message> {
+fn render_block<'a>(block: &'a ChatBlock, msg_index: usize, collapsed: bool) -> Element<'a, Message> {
     match block {
-        ChatBlock::Text(t) => text(t).size(13).color(theme::TEXT_PRIMARY).into(),
+        ChatBlock::Text(t) => markdown_view(t),
         ChatBlock::Code { language, code } => code_block_view(language.as_deref(), code),
         ChatBlock::ToolCall { name, status, result } => tool_call_view(name, *status, result),
+        ChatBlock::Thinking { summary, detail } => thinking_view(summary, detail, msg_index, collapsed),
     }
+}
+
+/// 构造一个「链接消息类型 = Message」的拥有式 Span（无实际链接值），
+/// 以满足 rich_text 对 `Link: Clone` 的约束，同时保持 Link 类型一致。
+fn span(content: String) -> Span<'static, Message> {
+    Span::new(content).link_maybe(None::<Message>)
+}
+
+/// 用 iced rich_text 渲染「行内 Markdown」：标题 / 列表 / 粗体 / 斜体 / 行内代码 / 链接。
+/// 全部使用拥有的 Span（字符串自持），不借用外部数据，可在每次重绘时安全调用。
+fn markdown_view<'a>(content: &'a str) -> Element<'a, Message> {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut blocks: Vec<Element<'a, Message>> = Vec::new();
+    let mut i = 0usize;
+
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
+
+        // 无序列表（- / *）
+        if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+            let mut items: Vec<&str> = Vec::new();
+            while i < lines.len() {
+                let t = lines[i].trim_start();
+                if t.starts_with("- ") || t.starts_with("* ") {
+                    items.push(t[2..].trim());
+                    i += 1;
+                } else if lines[i].trim().is_empty() {
+                    break;
+                } else {
+                    break;
+                }
+            }
+            let list: Vec<Element<'a, Message>> = items
+                .iter()
+                .map(|it| {
+                    let mut spans = vec![
+                        span("•  ".to_string()).size(13).color(theme::TEXT_PRIMARY),
+                    ];
+                    spans.extend(parse_inline(*it, 13.0));
+                    container(rich_text(spans)).into()
+                })
+                .collect();
+            blocks.push(container(column(list).spacing(4)).into());
+            continue;
+        }
+
+        // 标题
+        if let Some(rest) = trimmed.strip_prefix("### ") {
+            blocks.push(heading_span(rest, 13.0));
+            i += 1;
+            continue;
+        }
+        if let Some(rest) = trimmed.strip_prefix("## ") {
+            blocks.push(heading_span(rest, 15.0));
+            i += 1;
+            continue;
+        }
+        if let Some(rest) = trimmed.strip_prefix("# ") {
+            blocks.push(heading_span(rest, 17.0));
+            i += 1;
+            continue;
+        }
+
+        // 空行
+        if line.trim().is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // 段落：聚合到下一个空行 / 标题 / 列表之前
+        let mut para = String::new();
+        while i < lines.len()
+            && !lines[i].trim().is_empty()
+            && !lines[i].trim_start().starts_with("- ")
+            && !lines[i].trim_start().starts_with("* ")
+            && !lines[i].trim_start().starts_with('#')
+        {
+            if !para.is_empty() {
+                para.push(' ');
+            }
+            para.push_str(lines[i].trim());
+            i += 1;
+        }
+        blocks.push(container(rich_text(parse_inline(&para, 13.0))).into());
+    }
+
+    if blocks.is_empty() {
+        blocks.push(text("").into());
+    }
+
+    column(blocks).spacing(6).width(Length::Fill).into()
+}
+
+/// 解析一段行内文本为拥有式 Span 列表，支持 **粗体** / *斜体* / `代码` / [链接](url)。
+fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
+    let chars: Vec<char> = src.chars().collect();
+    let n = chars.len();
+    let mut out: Vec<Span<'a, Message>> = Vec::new();
+    let mut plain = String::new();
+    let mut i = 0usize;
+
+    let flush = |plain: &mut String, out: &mut Vec<Span<'a, Message>>| {
+        if !plain.is_empty() {
+            out.push(span(std::mem::take(plain)).size(size).color(theme::TEXT_PRIMARY));
+        }
+    };
+
+    while i < n {
+        // 行内代码 `code`
+        if chars[i] == '`' {
+            flush(&mut plain, &mut out);
+            let mut j = i + 1;
+            let mut code = String::new();
+            while j < n && chars[j] != '`' {
+                code.push(chars[j]);
+                j += 1;
+            }
+            i = (j + 1).min(n);
+            out.push(
+                span(code)
+                    .size(size)
+                    .font(iced::Font::MONOSPACE)
+                    .color(theme::TEXT_PRIMARY),
+            );
+            continue;
+        }
+        // 粗体 **text**
+        if i + 1 < n && chars[i] == '*' && chars[i + 1] == '*' {
+            flush(&mut plain, &mut out);
+            let mut j = i + 2;
+            let mut bold = String::new();
+            while j + 1 < n && !(chars[j] == '*' && chars[j + 1] == '*') {
+                bold.push(chars[j]);
+                j += 1;
+            }
+            i = (j + 2).min(n);
+            out.push(span(bold).size(size).font(bold_font()).color(theme::TEXT_PRIMARY));
+            continue;
+        }
+        // 斜体 *text*
+        if chars[i] == '*' {
+            flush(&mut plain, &mut out);
+            let mut j = i + 1;
+            let mut ital = String::new();
+            while j < n && chars[j] != '*' {
+                ital.push(chars[j]);
+                j += 1;
+            }
+            i = (j + 1).min(n);
+            out.push(span(ital).size(size).color(theme::TEXT_MUTED));
+            continue;
+        }
+        // 链接 [label](url)
+        if chars[i] == '[' {
+            let mut j = i + 1;
+            let mut label = String::new();
+            while j < n && chars[j] != ']' {
+                label.push(chars[j]);
+                j += 1;
+            }
+            if j < n && chars.get(j + 1) == Some(&'(') {
+                let mut k = j + 2;
+                let mut url = String::new();
+                while k < n && chars[k] != ')' {
+                    url.push(chars[k]);
+                    k += 1;
+                }
+                if k < n {
+                    flush(&mut plain, &mut out);
+                    out.push(
+                        span(label)
+                            .size(size)
+                            .color(theme::ACCENT)
+                            .underline(true)
+                            .link(Message::LinkClicked(url)),
+                    );
+                    i = (k + 1).min(n);
+                    continue;
+                }
+            }
+        }
+        plain.push(chars[i]);
+        i += 1;
+    }
+    flush(&mut plain, &mut out);
+    out
+}
+
+/// 粗体字体（iced 默认不含字重，需要显式指定 Weight::Bold）。
+fn bold_font() -> iced::Font {
+    iced::Font {
+        weight: iced::font::Weight::Bold,
+        ..iced::Font::DEFAULT
+    }
+}
+
+/// 渲染一个标题行（粗体 + 主文字色）。
+fn heading_span<'a>(text: &str, size: f32) -> Element<'a, Message> {
+    container(
+        rich_text(vec![span(text.to_string())
+            .size(size)
+            .font(bold_font())
+            .color(theme::TEXT_PRIMARY)]),
+    )
+    .into()
+}
+
+/// 可折叠的「思考过程」卡片：折叠态显示一句话摘要，展开态显示完整 Markdown 内容。
+fn thinking_view<'a>(
+    summary: &'a str,
+    detail: &'a str,
+    msg_index: usize,
+    collapsed: bool,
+) -> Element<'a, Message> {
+    let chevron = text(if collapsed { "▸" } else { "▾" })
+        .size(12)
+        .color(theme::TEXT_MUTED);
+
+    let brain = Svg::from_path(asset_path("brain"))
+        .width(Length::Fixed(14.0))
+        .height(Length::Fixed(14.0))
+        .style(|_: &iced::Theme, _| iced::widget::svg::Style {
+            color: Some(theme::ACCENT_ORANGE),
+        });
+
+    let label = text("思考过程").size(12).color(theme::TEXT_MUTED);
+
+    let header_right = if collapsed {
+        container(text(summary).size(12).color(theme::TEXT_MUTED))
+            .width(Length::Fill)
+            .padding(theme::pad(0.0, 8.0, 0.0, 8.0))
+    } else {
+        container(Space::new().width(Length::Fill).height(Length::Shrink))
+    };
+
+    let header = button(
+        row![chevron, brain, label, header_right]
+            .spacing(8)
+            .align_y(Alignment::Center),
+    )
+    .width(Length::Fill)
+    .padding([2, 4])
+    .style(|_: &iced::Theme, _status| iced::widget::button::Style {
+        background: None,
+        border: Border::default(),
+        ..Default::default()
+    })
+    .on_press(Message::ToggleThinking(msg_index));
+
+    let body = if collapsed {
+        column![]
+    } else {
+        column![markdown_view(detail)].spacing(0)
+    };
+
+    container(column![header, body].spacing(6))
+        .width(Length::Fill)
+        .padding(theme::pad(4.0, 10.0, 10.0, 10.0))
+        .style(|_: &iced::Theme| iced::widget::container::Style {
+            background: Some(Background::Color(Color::from_rgb(0.13, 0.12, 0.11))),
+            border: Border {
+                radius: 10.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(0.95, 0.62, 0.20, 0.35),
+            },
+            ..Default::default()
+        })
+        .into()
 }
 
 fn code_block_view<'a>(language: Option<&'a str>, code: &'a str) -> Element<'a, Message> {
