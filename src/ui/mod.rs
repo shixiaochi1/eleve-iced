@@ -18,6 +18,9 @@ use iced::{Element, Length, Padding, Background};
 /// Agents 面板滚动容器 id（新建卡片后用于 snap_to 顶部，确保新卡片立即可见）
 pub const AGENTS_PANEL_SCROLL_ID: &str = "agents-panel-scroll";
 
+/// 聊天消息列表滚动容器 id（新消息后自动滚到底部）
+pub const CHAT_SCROLL_ID: &str = "chat-scroll";
+
 // ============================================================
 // 导航分区 —— 严格对齐 Tauri 的三类「弹出」形态
 //   1) 左侧面板 (SidePanel)   : 聊天区常驻，左侧出现分区内容
@@ -71,7 +74,48 @@ pub enum CreateDialog {
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
     pub role: String, // "user" | "assistant"
-    pub content: String,
+    pub blocks: Vec<ChatBlock>,
+}
+
+/// 聊天消息块：纯文本 / 代码块 / 工具调用卡片
+#[derive(Debug, Clone)]
+pub enum ChatBlock {
+    Text(String),
+    Code {
+        language: Option<String>,
+        code: String,
+    },
+    ToolCall {
+        name: String,
+        status: ToolStatus,
+        result: String,
+    },
+}
+
+/// 工具调用状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // mock 阶段可能未全部展示，保留给真实后端状态
+pub enum ToolStatus {
+    Running,
+    Done,
+    Error,
+}
+
+impl ToolStatus {
+    pub fn label(&self) -> &'static str {
+        match self {
+            ToolStatus::Running => "执行中",
+            ToolStatus::Done => "已完成",
+            ToolStatus::Error => "失败",
+        }
+    }
+    pub fn accent(&self) -> iced::Color {
+        match self {
+            ToolStatus::Running => iced::Color::from_rgb(0.85, 0.62, 0.20),
+            ToolStatus::Done => iced::Color::from_rgb(0.30, 0.70, 0.45),
+            ToolStatus::Error => iced::Color::from_rgb(0.86, 0.27, 0.27),
+        }
+    }
 }
 
 /// Agent 身份（对齐 Tauri ProfilePanel.ProfileCardData）
@@ -282,21 +326,79 @@ fn initial_messages() -> Vec<ChatMessage> {
     vec![
         ChatMessage {
             role: "user".into(),
-            content: "你好，请介绍一下你自己".into(),
+            blocks: vec![ChatBlock::Text("你好，请介绍一下你自己".into())],
         },
         ChatMessage {
             role: "assistant".into(),
-            content: "你好！我是 ELEVE Agent，一个基于 Rust 构建的 AI 智能体。我可以帮你写代码、分析数据、自动化任务等。有什么我可以帮你的吗？".into(),
+            blocks: vec![ChatBlock::Text(
+                "你好！我是 ELEVE Agent，一个基于 Rust 构建的 AI 智能体。我可以帮你写代码、分析数据、自动化任务等。有什么我可以帮你的吗？".into(),
+            )],
         },
         ChatMessage {
             role: "user".into(),
-            content: "帮我把 eleve-iced 的布局按 Tauri 的方式重构一下".into(),
+            blocks: vec![ChatBlock::Text("帮我把 eleve-iced 的布局按 Tauri 的方式重构一下".into())],
         },
         ChatMessage {
             role: "assistant".into(),
-            content: "好的。Tauri 的设计是：主聊天区永远常驻，左侧图标栏的点击分为三类——打开左侧面板、切换右侧抽屉、弹出模态窗口。我现在就按这个模型来重构 iced 前端。".into(),
+            blocks: parse_message_content(
+                "好的。Tauri 的设计是：主聊天区永远常驻，左侧图标栏的点击分为三类——打开左侧面板、切换右侧抽屉、弹出模态窗口。\n\n我会先读取当前项目结构：\n\n```rust\nlet layout = Layout::new()\n    .with_sidebar(true)\n    .with_right_drawer(true);\n```\n\n然后逐步重构 iced 前端。",
+            ),
+        },
+        ChatMessage {
+            role: "assistant".into(),
+            blocks: vec![
+                ChatBlock::ToolCall {
+                    name: "file_read".into(),
+                    status: ToolStatus::Done,
+                    result: "已读取 src/ui/mod.rs（当前包含 1+3 布局调度）".into(),
+                },
+                ChatBlock::Text("项目结构确认完毕，开始重构。".into()),
+            ],
         },
     ]
+}
+
+/// 将一段纯文本按 Markdown 代码围栏拆分为 Text / Code 块。
+/// 暂不支持嵌套围栏；工具调用块由构造者显式创建。
+pub fn parse_message_content(text: &str) -> Vec<ChatBlock> {
+    let mut blocks = Vec::new();
+    let mut current = String::new();
+    let mut in_code = false;
+    let mut language: Option<String> = None;
+
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        if !in_code && trimmed.starts_with("```") {
+            if !current.trim().is_empty() {
+                blocks.push(ChatBlock::Text(current.trim_end().into()));
+                current.clear();
+            }
+            in_code = true;
+            let lang = trimmed.trim_start_matches('`').trim();
+            language = if lang.is_empty() { None } else { Some(lang.into()) };
+        } else if in_code && trimmed.starts_with("```") {
+            blocks.push(ChatBlock::Code {
+                language: language.take(),
+                code: current.trim_end().into(),
+            });
+            current.clear();
+            in_code = false;
+        } else {
+            current.push_str(line);
+            current.push('\n');
+        }
+    }
+
+    if in_code {
+        blocks.push(ChatBlock::Code {
+            language: language.take(),
+            code: current.trim_end().into(),
+        });
+    } else if !current.trim().is_empty() {
+        blocks.push(ChatBlock::Text(current.trim_end().into()));
+    }
+
+    blocks
 }
 
 fn initial_profiles() -> Vec<AgentProfile> {
@@ -641,10 +743,18 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
         Message::SendPressed => {
             let text = state.input.trim().to_string();
             if !text.is_empty() {
-                state.messages.push(ChatMessage { role: "user".into(), content: text.clone() });
+                let user_blocks = parse_message_content(&text);
+                state.messages.push(ChatMessage { role: "user".into(), blocks: user_blocks });
                 let reply = format!("（演示）已收到你的消息：「{}」。这是一段模拟回复，后端接入后将由真实 Agent 生成。", text);
-                state.messages.push(ChatMessage { role: "assistant".into(), content: reply });
+                state.messages.push(ChatMessage {
+                    role: "assistant".into(),
+                    blocks: vec![ChatBlock::Text(reply)],
+                });
                 state.input.clear();
+                return operate(snap_to(
+                    Id::new(CHAT_SCROLL_ID),
+                    iced::widget::scrollable::RelativeOffset::END.into(),
+                ));
             }
         }
         // ── Agent 左侧栏 ──

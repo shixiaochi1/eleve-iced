@@ -7,7 +7,7 @@
 //                  进度条
 //     InputArea (composer-surface) — 控制行：[≡] [+] [🎤] [🚫] [模型] [模式] [⚡] [🌐] ··· [发送]
 
-use iced::widget::{button, column, container, row, scrollable, text, text_input, Space, Svg, rule};
+use iced::widget::{button, column, container, row, scrollable, text, text_input, Space, Svg, rule, Id};
 use iced::{Element, Length, Background, Border, Alignment, Color, Padding};
 use std::path::PathBuf;
 
@@ -18,7 +18,7 @@ fn asset_path(name: &str) -> PathBuf {
     PathBuf::from(ASSET_BASE).join("assets/icons").join(format!("{}.svg", name))
 }
 
-use crate::ui::{ChatMessage, Message, State, theme};
+use crate::ui::{ChatBlock, ChatMessage, Message, State, ToolStatus, theme, CHAT_SCROLL_ID};
 
 // ============================================================
 // View — 聊天区主入口
@@ -116,6 +116,7 @@ fn messages_view<'a>(state: &'a State) -> Element<'a, Message> {
         .collect();
 
     scrollable(column(messages).spacing(8))
+        .id(Id::new(CHAT_SCROLL_ID))
         .height(Length::Fill)
         .width(Length::Fill)
         .into()
@@ -495,7 +496,13 @@ fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
         iced::alignment::Horizontal::Left
     };
 
-    let bubble = container(text(&msg.content).size(13).color(theme::TEXT_PRIMARY))
+    let block_elements: Vec<Element<'a, Message>> = msg
+        .blocks
+        .iter()
+        .map(|block| render_block(block))
+        .collect();
+
+    let bubble = container(column(block_elements).spacing(8))
         .padding(12)
         .style(move |_: &iced::Theme| iced::widget::container::Style {
             background: Some(Background::Color(bg)),
@@ -514,5 +521,87 @@ fn message_bubble<'a>(msg: &'a ChatMessage) -> Element<'a, Message> {
     container(aligned)
         .width(Length::Fill)
         .padding([4, 0])
+        .into()
+}
+
+fn render_block<'a>(block: &'a ChatBlock) -> Element<'a, Message> {
+    match block {
+        ChatBlock::Text(t) => text(t).size(13).color(theme::TEXT_PRIMARY).into(),
+        ChatBlock::Code { language, code } => code_block_view(language.as_deref(), code),
+        ChatBlock::ToolCall { name, status, result } => tool_call_view(name, *status, result),
+    }
+}
+
+fn code_block_view<'a>(language: Option<&'a str>, code: &'a str) -> Element<'a, Message> {
+    let header = row![
+        text(language.unwrap_or("text")).size(11).color(theme::TEXT_MUTED),
+        Space::new().width(Length::Fill).height(Length::Shrink),
+    ]
+    .padding([6, 10])
+    .align_y(Alignment::Center);
+
+    let body = text(code)
+        .size(12)
+        .color(theme::TEXT_PRIMARY)
+        .font(iced::Font::MONOSPACE);
+
+    container(column![header, body].spacing(0))
+        .width(Length::Fill)
+        .padding(theme::pad(0.0, 0.0, 8.0, 0.0))
+        .style(|_: &iced::Theme| iced::widget::container::Style {
+            background: Some(Background::Color(Color::from_rgb(0.09, 0.10, 0.12))),
+            border: Border {
+                radius: 8.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.08),
+            },
+            ..Default::default()
+        })
+        .into()
+}
+
+fn tool_call_view<'a>(name: &'a str, status: ToolStatus, result: &'a str) -> Element<'a, Message> {
+    let icon = Svg::from_path(asset_path("bot"))
+        .width(Length::Fixed(14.0))
+        .height(Length::Fixed(14.0))
+        .style(|_: &iced::Theme, _| iced::widget::svg::Style {
+            color: Some(theme::TEXT_MUTED),
+        });
+
+    let status_color = status.accent();
+    let status_pill = container(text(status.label()).size(10).color(status_color))
+        .padding([2, 8])
+        .style(move |_: &iced::Theme| iced::widget::container::Style {
+            background: Some(Background::Color(Color {
+                r: status_color.r,
+                g: status_color.g,
+                b: status_color.b,
+                a: 0.15,
+            })),
+            border: Border { radius: 6.0.into(), width: 0.0, color: Color::TRANSPARENT },
+            ..Default::default()
+        });
+
+    let header = row![
+        icon,
+        text(name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
+        status_pill,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let result_text = text(result).size(12).color(theme::TEXT_MUTED);
+
+    container(column![header, result_text].spacing(6).padding(12))
+        .width(Length::Fill)
+        .style(|_: &iced::Theme| iced::widget::container::Style {
+            background: Some(Background::Color(Color::from_rgb(0.11, 0.12, 0.14))),
+            border: Border {
+                radius: 10.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.08),
+            },
+            ..Default::default()
+        })
         .into()
 }
