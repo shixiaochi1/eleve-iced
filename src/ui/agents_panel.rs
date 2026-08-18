@@ -34,6 +34,19 @@ use crate::ui::{
 
 const SEP_LIGHT: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.06); // 预览会话分隔线（border/40）
 
+/// 侧栏卡片圆角：对齐 Tauri 卡片 `rounded-lg`（0.5rem = 8px）
+const SIDE_CARD_RADIUS: f32 = 8.0;
+
+/// 两色线性混合：t=1 取 a，t=0 取 b（用于 hover 时把 accent 30% 叠在卡片底 BG_CARD 上）
+fn mix(a: Color, b: Color, t: f32) -> Color {
+    Color {
+        r: a.r * t + b.r * (1.0 - t),
+        g: a.g * t + b.g * (1.0 - t),
+        b: a.b * t + b.b * (1.0 - t),
+        a: 1.0,
+    }
+}
+
 // ───────────────────────────────────────────────────────────
 // 入口：AgentsPanel 整体（单卡片：上 Agent / 分隔 / 下 Project）
 // ───────────────────────────────────────────────────────────
@@ -57,7 +70,11 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     container(scroller)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(theme::card_style())
+        // 面板底色用更暗的 BG_BACKBOARD，让卡片(BG_CARD)浮在其上、彼此以暗缝分隔（对齐 Tauri 卡片坐在更暗面板底）
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(Background::Color(theme::BG_BACKBOARD)),
+            ..Default::default()
+        })
         .into()
 }
 
@@ -84,6 +101,20 @@ fn svg_icon<'a>(name: &str, size: f32, color: Color) -> Element<'a, Message> {
 fn bold_font() -> Font {
     Font {
         weight: iced::font::Weight::Bold,
+        ..Font::DEFAULT
+    }
+}
+
+fn medium_font() -> Font {
+    Font {
+        weight: iced::font::Weight::Medium,
+        ..Font::DEFAULT
+    }
+}
+
+fn semibold_font() -> Font {
+    Font {
+        weight: iced::font::Weight::Semibold,
         ..Font::DEFAULT
     }
 }
@@ -271,7 +302,7 @@ fn section_header<'a>(
     };
 
     row![
-        text(label).size(10).font(bold_font()).color(theme::with_alpha(theme::TEXT_MUTED, 0.6)),
+        text(label).size(10).font(semibold_font()).color(theme::with_alpha(theme::TEXT_MUTED, 0.6)),
         text(format!("{count}")).size(10).color(theme::with_alpha(theme::TEXT_MUTED, 0.4)),
         Space::new().width(Length::Fill),
         new_btn,
@@ -330,7 +361,7 @@ fn card_shadow(selected: bool) -> Shadow {
         }
     } else {
         Shadow {
-            color: Color::from_rgba(0.0, 0.0, 0.0, 0.18),
+            color: Color::from_rgba(0.0, 0.0, 0.0, 0.10),
             offset: Vector::new(0.0, 1.0),
             blur_radius: 2.0,
         }
@@ -365,8 +396,8 @@ fn profile_card<'a>(state: &'a State, p: &'a AgentProfile) -> Element<'a, Messag
         // 名称行：display_name (+ (id) 静音) + 默认徽标（仅默认 Agent 显示，数据驱动差异）
         let mut name_row_items: Vec<Element<'a, Message>> = vec![
             text(&p.display_name)
-                .size(13)
-                .font(bold_font())
+                .size(12)
+                .font(medium_font())
                 .color(theme::TEXT_PRIMARY)
                 .into(),
         ];
@@ -497,8 +528,8 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
             chevron.into(),
             icon_box,
             text(&p.label)
-                .size(13)
-                .font(bold_font())
+                .size(12)
+                .font(medium_font())
                 .color(theme::TEXT_PRIMARY)
                 .into(),
         ];
@@ -921,30 +952,35 @@ fn kebab_button<'a>(id: String) -> Element<'a, Message> {
 fn card_chrome(
     selected: bool,
     accent: Color,
+    hovered: bool,
 ) -> impl Fn(&iced::Theme) -> container::Style {
     move |_| {
-        if selected {
-            container::Style {
-                background: Some(Background::Color(theme::with_alpha(accent, 0.10))),
-                border: Border {
-                    radius: 10.0.into(),
-                    width: 1.0,
-                    color: theme::with_alpha(accent, 0.45),
-                },
-                shadow: card_shadow(true),
-                ..Default::default()
-            }
+        // 底色：未悬浮=卡片底；悬浮=accent 30% 叠在卡片底（对齐 Tauri hover:bg-accent/30）。
+        // 选中态也保持同卡片底（2026-08-18 去 10% 淡底），仅靠描边/光环/发光竖条辨识。
+        let bg = if hovered {
+            mix(accent, theme::BG_CARD, 0.70)
         } else {
-            container::Style {
-                background: Some(Background::Color(theme::BG_CARD)),
-                border: Border {
-                    radius: 10.0.into(),
-                    width: 1.0,
-                    color: theme::with_alpha(accent, 0.30),
-                },
-                shadow: card_shadow(false),
-                ..Default::default()
-            }
+            theme::BG_CARD
+        };
+        let border_color = if selected {
+            theme::with_alpha(accent, 0.45)
+        } else {
+            theme::with_alpha(accent, 0.30)
+        };
+        let shadow = if selected {
+            card_shadow(true)
+        } else {
+            card_shadow(false)
+        };
+        container::Style {
+            background: Some(Background::Color(bg)),
+            border: Border {
+                radius: SIDE_CARD_RADIUS.into(),
+                width: 1.0,
+                color: border_color,
+            },
+            shadow,
+            ..Default::default()
         }
     }
 }
@@ -963,7 +999,8 @@ fn card_frame<'a>(
     let actions = mk_actions();
 
     // 构建卡片的闭包（base/top 结构必须完全相同；Element 不可 Clone，故用闭包复用逻辑）
-    let mk_card = |current_actions: Vec<Element<'a, Message>>| -> Element<'a, Message> {
+    // hovered 仅改变底色（未悬浮=卡片底 / 悬浮=accent 30% 叠底），不改变结构 → hover 不会塌缩。
+    let mk_card = |current_actions: Vec<Element<'a, Message>>, hovered: bool| -> Element<'a, Message> {
         let actions_row: Element<'a, Message> = if current_actions.is_empty() {
             Space::new().into()
         } else {
@@ -981,8 +1018,8 @@ fn card_frame<'a>(
             .align_y(Alignment::Center),
         )
         .width(Length::Fill)
-        .padding(theme::pad(0.0, 8.0, 0.0, 0.0))
-        .style(card_chrome(selected, accent))
+        .padding(theme::pad(8.0, 10.0, 8.0, 0.0)) // 对齐 Tauri 卡片 px-2.5 py-2（10×8）
+        .style(card_chrome(selected, accent, hovered))
         .into()
     };
 
@@ -997,8 +1034,7 @@ fn card_frame<'a>(
         })
         .collect();
 
-    // hover 实现"鼠标放整卡 → 操作按钮显现"。
-    // 根因：iced 0.14 hover 在 base/top 结构/尺寸不一致时会导致卡片在列中塌为 0 而不显示，
-    // 因此 base 必须与 top 保持完全相同的子结构（用同尺寸透明 container 占位）。
-    hover(mk_card(base_actions), mk_card(actions)).into()
+    // hover 实现"鼠标放整卡 → 底色变 accent 30% 淡底 + 操作按钮显现"。
+    // base/top 子结构、尺寸完全一致（仅底色/操作内容不同），iced 0.14 hover 不会塌缩。
+    hover(mk_card(base_actions, false), mk_card(actions, true)).into()
 }
