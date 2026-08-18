@@ -1002,7 +1002,12 @@ fn card_frame<'a>(
     // hovered 仅改变底色（未悬浮=卡片底 / 悬浮=accent 30% 叠底），不改变结构 → hover 不会塌缩。
     let mk_card = |current_actions: Vec<Element<'a, Message>>, hovered: bool| -> Element<'a, Message> {
         let actions_row: Element<'a, Message> = if current_actions.is_empty() {
-            Space::new().into()
+            // 无操作按钮时也不能用 Space::new()：hover/row 在缺少固定高度参考时
+            // 会把卡片高度压成只剩 accent 竖条。用与真实按钮同尺寸的透明占位。
+            container(Space::new())
+                .width(Length::Fixed(28.0))
+                .height(Length::Fixed(28.0))
+                .into()
         } else {
             row(current_actions).spacing(0.0).align_y(Alignment::Center).into()
         };
