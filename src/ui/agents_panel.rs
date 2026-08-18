@@ -349,6 +349,7 @@ fn profiles_section<'a>(state: &'a State) -> Element<'a, Message> {
         section_header("AGENTS", state.profiles.len(), Some(CreateDialog::Agent)),
         column(cards).spacing(6).padding(theme::pad(2.0, 8.0, 10.0, 8.0)),
     ]
+    .width(Length::Fill)
     .into()
 }
 
@@ -444,6 +445,7 @@ fn projects_section<'a>(state: &'a State) -> Element<'a, Message> {
         section_header("项目", state.projects.len(), Some(CreateDialog::Project)),
         body,
     ]
+    .width(Length::Fill)
     .height(Length::Fill)
     .into()
 }
@@ -456,6 +458,7 @@ fn overview_view<'a>(state: &'a State) -> Element<'a, Message> {
     column(cards)
         .spacing(6)
         .padding(theme::pad(2.0, 8.0, 10.0, 8.0))
+        .width(Length::Fill)
         .into()
 }
 
@@ -977,6 +980,7 @@ fn card_frame<'a>(
             .spacing(0.0)
             .align_y(Alignment::Center),
         )
+        .width(Length::Fill)
         .padding(theme::pad(0.0, 8.0, 0.0, 0.0))
         .style(card_chrome(selected, accent))
         .into()
