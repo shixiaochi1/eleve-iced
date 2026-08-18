@@ -37,16 +37,6 @@ const SEP_LIGHT: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.06); // 预览会话�
 /// 侧栏卡片圆角：对齐 Tauri 卡片 `rounded-lg`（0.5rem = 8px）
 const SIDE_CARD_RADIUS: f32 = 8.0;
 
-/// 两色线性混合：t=1 取 a，t=0 取 b（用于 hover 时把 accent 30% 叠在卡片底 BG_CARD 上）
-fn mix(a: Color, b: Color, t: f32) -> Color {
-    Color {
-        r: a.r * t + b.r * (1.0 - t),
-        g: a.g * t + b.g * (1.0 - t),
-        b: a.b * t + b.b * (1.0 - t),
-        a: 1.0,
-    }
-}
-
 // ───────────────────────────────────────────────────────────
 // 入口：AgentsPanel 整体（单卡片：上 Agent / 分隔 / 下 Project）
 // ───────────────────────────────────────────────────────────
@@ -947,25 +937,28 @@ fn kebab_button<'a>(id: String) -> Element<'a, Message> {
 // 卡片容器样式
 // ───────────────────────────────────────────────────────────
 
-/// 通用卡片 chrome：选中 = 10% 淡底 + 45% 描边 + 重投影；未选中 = 浅卡片底 + 30% 描边 + 微投影
-/// Agent 与 Project 卡片共用此样式，差异仅由 accent / selected 数据驱动（不重复造轮子）。
+/// 通用卡片 chrome：未选中 = 统一亮卡片底 + 中性浅描边；选中/悬浮 = 同一亮底（选中加 accent 高亮描边 + 发光竖条）
+/// Agent 与 Project 卡片共用此样式。
+/// 设计要点（用户要求“所有卡片颜色要一样”）：未选中卡绝不上 accent 色，描边统一中性浅灰，
+/// 仅选中卡用 accent 做高亮；卡片底统一提亮到明显高于背板，确保清晰可见、不融进背景。
 fn card_chrome(
     selected: bool,
     accent: Color,
     hovered: bool,
 ) -> impl Fn(&iced::Theme) -> container::Style {
     move |_| {
-        // 底色：未悬浮=卡片底；悬浮=accent 30% 叠在卡片底（对齐 Tauri hover:bg-accent/30）。
-        // 选中态也保持同卡片底（2026-08-18 去 10% 淡底），仅靠描边/光环/发光竖条辨识。
+        // 统一卡片底：明显亮于背板 BG_BACKBOARD(0.08)，卡片清晰浮起；
+        // 悬浮仅整体提亮（0.17→0.21），不变色，避免“hover 后颜色不一样”。
         let bg = if hovered {
-            mix(accent, theme::BG_CARD, 0.70)
+            Color::from_rgb(0.21, 0.22, 0.25)
         } else {
-            theme::BG_CARD
+            Color::from_rgb(0.17, 0.18, 0.20)
         };
+        // 描边：未选中=统一中性浅边（所有卡片同色）；选中=accent 高亮（保留选中辨识）。
         let border_color = if selected {
-            theme::with_alpha(accent, 0.45)
+            theme::with_alpha(accent, 0.55)
         } else {
-            theme::with_alpha(accent, 0.30)
+            Color::from_rgba(1.0, 1.0, 1.0, 0.12)
         };
         let shadow = if selected {
             card_shadow(true)
