@@ -957,29 +957,44 @@ fn card_frame<'a>(
     mk_actions: impl Fn() -> Vec<Element<'a, Message>> + 'a,
     select: Message,
 ) -> Element<'a, Message> {
-    let build = |show: bool| -> Element<'a, Message> {
-        let actions = mk_actions();
-        let n = actions.len();
-        let mut items: Vec<Element<'a, Message>> = vec![
-            accent_bar(selected, accent),
-            container(MouseArea::new(mk_inner()).on_press(select.clone()))
-                .padding(theme::pad(0.0, 0.0, 0.0, 7.0)) // 与左侧发光竖条留出间距
-                .into(),
-        ];
-        if show {
-            items.extend(actions);
+    let actions = mk_actions();
+
+    // 构建卡片的闭包（base/top 结构必须完全相同；Element 不可 Clone，故用闭包复用逻辑）
+    let mk_card = |current_actions: Vec<Element<'a, Message>>| -> Element<'a, Message> {
+        let actions_row: Element<'a, Message> = if current_actions.is_empty() {
+            Space::new().into()
         } else {
-            // 预留等宽占位，hover 出现按钮时不引起布局抖动
-            for _ in 0..n {
-                items.push(Space::new().width(Length::Fixed(28.0)).into());
-            }
-        }
+            row(current_actions).spacing(0.0).align_y(Alignment::Center).into()
+        };
         container(
-            row(items).spacing(0.0).align_y(Alignment::Center),
+            row![
+                accent_bar(selected, accent),
+                container(MouseArea::new(mk_inner()).on_press(select.clone()))
+                    .padding(theme::pad(0.0, 0.0, 0.0, 7.0))
+                    .width(Length::Fill),
+                actions_row,
+            ]
+            .spacing(0.0)
+            .align_y(Alignment::Center),
         )
-        .padding(theme::pad(0.0, 8.0, 0.0, 0.0)) // 仅右侧留白；竖条贴左缘（对齐 Tauri）
+        .padding(theme::pad(0.0, 8.0, 0.0, 0.0))
         .style(card_chrome(selected, accent))
         .into()
     };
-    hover(build(false), build(true)).into()
+
+    // base：透明占位（同尺寸 28×28 container），保证 base/top 结构一致
+    let base_actions: Vec<Element<'a, Message>> = actions
+        .iter()
+        .map(|_| {
+            container(Space::new())
+                .width(Length::Fixed(28.0))
+                .height(Length::Fixed(28.0))
+                .into()
+        })
+        .collect();
+
+    // hover 实现"鼠标放整卡 → 操作按钮显现"。
+    // 根因：iced 0.14 hover 在 base/top 结构/尺寸不一致时会导致卡片在列中塌为 0 而不显示，
+    // 因此 base 必须与 top 保持完全相同的子结构（用同尺寸透明 container 占位）。
+    hover(mk_card(base_actions), mk_card(actions)).into()
 }
