@@ -1,6 +1,7 @@
 mod agents_panel;
 mod chat_area;
 mod file_browser;
+mod grid_view;
 mod icon_bar;
 mod kanban_panel;
 mod left_panel;
@@ -67,6 +68,13 @@ pub enum Overlay {
 pub enum CreateDialog {
     Agent,
     Project,
+}
+
+/// 主视图模式：单视图（默认聊天） / 宫格多 Agent 视图（对齐 Tauri GridModeView）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewMode {
+    Single,
+    Grid,
 }
 
 // ============================================================
@@ -305,6 +313,11 @@ pub enum Message {
     SetAccent(String),
     SetAppearance(theme::Appearance),
     SetFontScale(theme::FontScale),
+
+    // ── 主视图模式切换（单视图 / 宫格，对齐 Tauri GridModeView）──
+    SetViewMode(ViewMode),
+    /// 宫格卡片「展开」：选中该 Agent 并回到单视图
+    GridExpand(String),
 }
 
 // ============================================================
@@ -354,6 +367,9 @@ pub struct State {
     pub accent: String,
     pub appearance: theme::Appearance,
     pub font_scale: theme::FontScale,
+
+    // 主视图模式（单视图 / 宫格）
+    pub view_mode: ViewMode,
 }
 
 fn initial_messages() -> Vec<ChatMessage> {
@@ -762,6 +778,7 @@ pub fn new() -> (State, iced::Task<Message>) {
         accent: theme::DEFAULT_ACCENT.to_string(),
         appearance: theme::DEFAULT_APPEARANCE,
         font_scale: theme::DEFAULT_FONT_SCALE,
+        view_mode: ViewMode::Single,
     };
     // 初始化全局调色板（默认 = 石墨灰 + 深色）
     theme::apply(&state.accent, state.appearance, state.font_scale);
@@ -1063,9 +1080,16 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
             state.appearance = ap;
             theme::apply(&state.accent, state.appearance, state.font_scale);
         }
-        Message::SetFontScale(fs) => {
+        Message::SetFontScale(fs)  => {
             state.font_scale = fs;
             theme::apply(&state.accent, state.appearance, state.font_scale);
+        }
+        Message::SetViewMode(vm) => {
+            state.view_mode = vm;
+        }
+        Message::GridExpand(id) => {
+            state.selected_profile = id;
+            state.view_mode = ViewMode::Single;
         }
     }
     iced::Task::none()
@@ -1074,12 +1098,16 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
 pub fn view(state: &State) -> Element<'_, Message> {
     let icon_bar = icon_bar::view(state);
 
-    // 中间区域：左面板（可选）+ 聊天区（常驻）+ 右抽屉（可选）
+    // 中间区域：左面板（可选）+ 主视图（单视图聊天 / 宫格）+ 右抽屉（可选）
     let mut children: Vec<Element<'_, Message>> = Vec::new();
     if let Some(panel) = state.active_panel {
         children.push(left_panel::view(state, panel));
     }
-    children.push(chat_area::view(state));
+    let main_view: Element<'_, Message> = match state.view_mode {
+        ViewMode::Single => chat_area::view(state),
+        ViewMode::Grid => grid_view::view(state),
+    };
+    children.push(main_view);
     if state.right_open {
         children.push(right_drawer::view(state));
     }

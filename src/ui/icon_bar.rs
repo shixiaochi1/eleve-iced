@@ -7,7 +7,7 @@
 use iced::widget::{button, column, container, rule, Svg, Space};
 use iced::{Element, Background, Length, Border, Padding};
 
-use crate::ui::{LeftPanel, Message, RightTab, State, theme};
+use crate::ui::{LeftPanel, Message, RightTab, State, ViewMode, theme};
 
 const ASSET_BASE: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -35,7 +35,15 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     .spacing(3)
     .align_x(iced::Alignment::Center);
 
+    let grid_active = state.view_mode == ViewMode::Grid;
+    let grid_msg = if grid_active {
+        Message::SetViewMode(ViewMode::Single)
+    } else {
+        Message::SetViewMode(ViewMode::Grid)
+    };
+
     let bottom_items = column![
+        icon_button("grid-2x2", grid_active, grid_msg, "宫格视图"),
         icon_button("settings", false, Message::OpenOverlay(crate::ui::Overlay::Settings), "设置"),
         icon_button("palette", false, Message::OpenOverlay(crate::ui::Overlay::Theme), "主题"),
         icon_button("info", false, Message::OpenOverlay(crate::ui::Overlay::About), "关于"),
