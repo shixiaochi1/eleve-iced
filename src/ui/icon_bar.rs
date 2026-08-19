@@ -49,7 +49,7 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
         nav_items,
         Space::new().height(Length::Fill),
         rule::horizontal(1.0).style(|_: &iced::Theme| rule::Style {
-            color: theme::SEPARATOR,
+            color: theme::separator(),
             radius: 0.0.into(),
             fill_mode: iced::widget::rule::FillMode::Full,
             snap: true,
@@ -75,7 +75,7 @@ fn icon_button<'a>(
     on_press: Message,
     tooltip: &'static str,
 ) -> Element<'a, Message> {
-    let icon_color = if is_active { theme::TEXT_ON_ACCENT } else { theme::TEXT_MUTED };
+    let icon_color = if is_active { theme::text_on_accent() } else { theme::text_muted() };
 
     let btn = button(
         Svg::from_path(asset_path(icon_name))
@@ -92,15 +92,15 @@ fn icon_button<'a>(
             iced::widget::button::Style {
                 background: Some(Background::Gradient(iced::Gradient::Linear(
                     iced::gradient::Linear::new(iced::Degrees(180.0))
-                        .add_stop(0.0, theme::ACCENT)
-                        .add_stop(1.0, theme::ACCENT_HOVER),
+                        .add_stop(0.0, theme::accent())
+                        .add_stop(1.0, theme::accent_hover()),
                 ))),
                 border: Border { radius: 10.0.into(), ..Default::default() },
                 ..Default::default()
             }
         } else if is_hovered {
             iced::widget::button::Style {
-                background: Some(Background::Color(theme::BG_HOVER)),
+                background: Some(Background::Color(theme::bg_hover())),
                 border: Border { radius: 10.0.into(), ..Default::default() },
                 ..Default::default()
             }

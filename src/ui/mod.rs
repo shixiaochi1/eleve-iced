@@ -7,7 +7,7 @@ mod left_panel;
 mod overlay;
 mod placeholder;
 mod right_drawer;
-mod theme;
+pub mod theme;
 
 use std::collections::{HashMap, HashSet};
 
@@ -300,6 +300,11 @@ pub enum Message {
 
     // ── 设置开关（模态弹窗 mock）──
     ToggleSetting(String),
+
+    // ── 主题（对齐 Tauri 外观 / accent / 字号）──
+    SetAccent(String),
+    SetAppearance(theme::Appearance),
+    SetFontScale(theme::FontScale),
 }
 
 // ============================================================
@@ -344,6 +349,11 @@ pub struct State {
 
     // 设置开关
     pub settings: HashMap<String, bool>,
+
+    // 主题（对齐 Tauri appearance / accent / 字号）
+    pub accent: String,
+    pub appearance: theme::Appearance,
+    pub font_scale: theme::FontScale,
 }
 
 fn initial_messages() -> Vec<ChatMessage> {
@@ -715,44 +725,47 @@ fn initial_settings() -> HashMap<String, bool> {
 // ============================================================
 
 pub fn new() -> (State, iced::Task<Message>) {
-    (
-        State {
-            active_panel: Some(LeftPanel::Agents),
-            right_open: false,
-            right_tab: RightTab::Files,
-            overlay: None,
-            input: String::new(),
-            messages: initial_messages(),
-            streaming: None,
-            caret_on: true,
-            thinking_collapsed: HashSet::new(),
-            profiles: initial_profiles(),
-            selected_profile: "default".into(),
-            projects: initial_projects(),
-            expanded_projects: {
-                let mut s = HashSet::new();
-                s.insert("eleve-core".to_string());
-                s.insert("__no_project__".to_string());
-                s
-            },
-            selected_project: Some("eleve-core".into()),
-            active_session: Some("s-c1".into()),
-            drill_project: None,
-            create_dialog: None,
-            create_input: String::new(),
-            fs_root_name: "eleve-iced".into(),
-            fs_nodes: initial_fs(),
-            expanded_dirs: {
-                let mut s = HashSet::new();
-                s.insert("/src".to_string());
-                s
-            },
-            selected_file: None,
-            kanban_columns: initial_kanban(),
-            settings: initial_settings(),
+    let state = State {
+        active_panel: Some(LeftPanel::Agents),
+        right_open: false,
+        right_tab: RightTab::Files,
+        overlay: None,
+        input: String::new(),
+        messages: initial_messages(),
+        streaming: None,
+        caret_on: true,
+        thinking_collapsed: HashSet::new(),
+        profiles: initial_profiles(),
+        selected_profile: "default".into(),
+        projects: initial_projects(),
+        expanded_projects: {
+            let mut s = HashSet::new();
+            s.insert("eleve-core".to_string());
+            s.insert("__no_project__".to_string());
+            s
         },
-        iced::Task::none(),
-    )
+        selected_project: Some("eleve-core".into()),
+        active_session: Some("s-c1".into()),
+        drill_project: None,
+        create_dialog: None,
+        create_input: String::new(),
+        fs_root_name: "eleve-iced".into(),
+        fs_nodes: initial_fs(),
+        expanded_dirs: {
+            let mut s = HashSet::new();
+            s.insert("/src".to_string());
+            s
+        },
+        selected_file: None,
+        kanban_columns: initial_kanban(),
+        settings: initial_settings(),
+        accent: theme::DEFAULT_ACCENT.to_string(),
+        appearance: theme::DEFAULT_APPEARANCE,
+        font_scale: theme::DEFAULT_FONT_SCALE,
+    };
+    // 初始化全局调色板（默认 = 石墨灰 + 深色）
+    theme::apply(&state.accent, state.appearance, state.font_scale);
+    (state, iced::Task::none())
 }
 
 fn find_card(columns: &mut Vec<KanbanColumn>, card_id: &str) -> Option<KanbanCard> {
@@ -1040,6 +1053,20 @@ pub fn update(state: &mut State, message: Message) -> iced::Task<Message> {
                 *v = !*v;
             }
         }
+
+        // ── 主题（改色 / 改外观 / 改字号 → 重算全局调色板）──
+        Message::SetAccent(a) => {
+            state.accent = a;
+            theme::apply(&state.accent, state.appearance, state.font_scale);
+        }
+        Message::SetAppearance(ap) => {
+            state.appearance = ap;
+            theme::apply(&state.accent, state.appearance, state.font_scale);
+        }
+        Message::SetFontScale(fs) => {
+            state.font_scale = fs;
+            theme::apply(&state.accent, state.appearance, state.font_scale);
+        }
     }
     iced::Task::none()
 }
@@ -1062,11 +1089,17 @@ pub fn view(state: &State) -> Element<'_, Message> {
     let base = container(row![icon_bar, center].spacing(theme::CARD_GAP))
         .width(Length::Fill)
         .height(Length::Fill)
-        // 1+3 布局：暗背板为底，三张卡片（左栏卡 / 聊天卡 / 右抽屉卡）浮在其上，
-        // 四周留 CARD_GAP 边距、卡片间留 CARD_GAP 间距（对齐 Tauri 的 pane 卡片浮起风格）
-        .padding(Padding::new(theme::CARD_GAP))
+        // 1+3 布局：暗背板为底，三张卡片（左栏卡 / 聊天卡 / 右抽屉卡）浮在其上。
+        // 顶部不留白——卡片直接顶到标题栏底部，与背板融为一体；
+        // 左右与底部保留 CARD_GAP 间距，保留卡片浮起的层次感。
+        .padding(Padding {
+            top: 0.0,
+            right: theme::CARD_GAP,
+            bottom: theme::CARD_GAP,
+            left: theme::CARD_GAP,
+        })
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_BACKBOARD)),
+            background: Some(Background::Color(theme::bg_backboard())),
             ..Default::default()
         })
         .into();

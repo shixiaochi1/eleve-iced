@@ -48,7 +48,7 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|_: &iced::Theme| iced::widget::container::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
                 width: 0.0,
@@ -81,7 +81,7 @@ fn tool_status_bar_view<'a>() -> Element<'a, Message> {
 
     let separator = rule::horizontal(1.0)
         .style(|_: &iced::Theme| rule::Style {
-            color: theme::SEPARATOR,
+            color: theme::separator(),
             radius: 0.0.into(),
             fill_mode: rule::FillMode::Full,
             snap: true,
@@ -126,9 +126,9 @@ fn messages_view<'a>(state: &'a State) -> Element<'a, Message> {
 
 fn empty_state_view<'a>() -> Element<'a, Message> {
     let hint_text = row![
-        text("Ctrl+N 新建会话").size(12).color(theme::TEXT_MUTED),
-        text("Enter 发送").size(12).color(theme::TEXT_MUTED),
-        text("Shift+Enter 换行").size(12).color(theme::TEXT_MUTED),
+        text("Ctrl+N 新建会话").size(12).color(theme::text_muted()),
+        text("Enter 发送").size(12).color(theme::text_muted()),
+        text("Shift+Enter 换行").size(12).color(theme::text_muted()),
     ]
     .spacing(16)
     .align_y(Alignment::Center);
@@ -137,8 +137,8 @@ fn empty_state_view<'a>() -> Element<'a, Message> {
         Svg::from_path(asset_path("Elogo"))
             .width(Length::Fixed(64.0))
             .height(Length::Fixed(64.0)),
-        text("Eleve Agent").size(18).color(theme::TEXT_PRIMARY),
-        text("你的 AI 智能助手 · 开始对话吧").size(13).color(theme::TEXT_MUTED),
+        text("Eleve Agent").size(18).color(theme::text_primary()),
+        text("你的 AI 智能助手 · 开始对话吧").size(13).color(theme::text_muted()),
         hint_text,
     ]
     .spacing(16)
@@ -169,9 +169,9 @@ fn context_bar_view<'a>() -> Element<'a, Message> {
         .align_y(Alignment::Center);
 
     let info_right = row![
-        text("30.2k / 1.0M tokens").size(11).color(theme::TEXT_MUTED),
-        text("2.0%").size(11).color(theme::TEXT_MUTED),
-        text("0秒前").size(11).color(theme::TEXT_MUTED),
+        text("30.2k / 1.0M tokens").size(11).color(theme::text_muted()),
+        text("2.0%").size(11).color(theme::text_muted()),
+        text("0秒前").size(11).color(theme::text_muted()),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -242,7 +242,7 @@ fn input_area_view<'a>(state: &'a State) -> Element<'a, Message> {
                 if hovered {
                     Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.94, 0.85)))
                 } else {
-                    Some(Background::Color(theme::TEXT_PRIMARY))
+                    Some(Background::Color(theme::text_primary()))
                 }
             } else {
                 Some(Background::Color(Color::from_rgba(0.92, 0.93, 0.95, 0.30)))
@@ -269,10 +269,10 @@ fn input_area_view<'a>(state: &'a State) -> Element<'a, Message> {
         .style(|_: &iced::Theme, _: iced::widget::text_input::Status| iced::widget::text_input::Style {
             background: Background::Color(Color::TRANSPARENT),
             border: Border::default(),
-            icon: theme::TEXT_MUTED,
-            placeholder: theme::TEXT_MUTED,
-            value: theme::TEXT_PRIMARY,
-            selection: theme::ACCENT,
+            icon: theme::text_muted(),
+            placeholder: theme::text_muted(),
+            value: theme::text_primary(),
+            selection: theme::accent(),
         });
 
     let inner = column![textarea, control_row]
@@ -285,7 +285,7 @@ fn input_area_view<'a>(state: &'a State) -> Element<'a, Message> {
             border: Border {
                 radius: 16.0.into(),
                 width: 1.0,
-                color: theme::SEPARATOR,
+                color: theme::separator(),
             },
             ..Default::default()
         })
@@ -299,12 +299,12 @@ fn input_area_view<'a>(state: &'a State) -> Element<'a, Message> {
 fn nav_btn<'a>(icon_text: &'static str, label: &'static str) -> Element<'a, Message> {
     let content = if icon_text == "+" {
         row![
-            text("+").size(13).color(theme::TEXT_MUTED),
-            text(label).size(12).color(theme::TEXT_MUTED),
+            text("+").size(13).color(theme::text_muted()),
+            text(label).size(12).color(theme::text_muted()),
         ]
         .spacing(4)
     } else {
-        row![text(label).size(12).color(theme::TEXT_MUTED)]
+        row![text(label).size(12).color(theme::text_muted())]
     };
 
     button(content)
@@ -314,9 +314,9 @@ fn nav_btn<'a>(icon_text: &'static str, label: &'static str) -> Element<'a, Mess
             let _hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
                 background: if _hovered {
-                    Some(Background::Color(theme::BG_HOVER))
+                    Some(Background::Color(theme::bg_hover()))
                 } else {
-                    Some(Background::Color(theme::BG_CARD))
+                    Some(Background::Color(theme::bg_card()))
                 },
                 border: Border {
                     radius: 6.0.into(),
@@ -330,16 +330,16 @@ fn nav_btn<'a>(icon_text: &'static str, label: &'static str) -> Element<'a, Mess
 }
 
 fn nav_btn_small<'a>(label: &'static str) -> Element<'a, Message> {
-    button(text(label).size(12).color(theme::TEXT_MUTED))
+    button(text(label).size(12).color(theme::text_muted()))
         .padding([4, 8])
         .height(Length::Fixed(28.0))
         .style(|_: &iced::Theme, status| {
             let _hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
                 background: if _hovered {
-                    Some(Background::Color(theme::BG_HOVER))
+                    Some(Background::Color(theme::bg_hover()))
                 } else {
-                    Some(Background::Color(theme::BG_CARD))
+                    Some(Background::Color(theme::bg_card()))
                 },
                 border: Border {
                     radius: 6.0.into(),
@@ -357,14 +357,14 @@ fn deepseek_button<'a>() -> Element<'a, Message> {
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_: &iced::Theme, _| iced::widget::svg::Style {
-            color: Some(theme::TEXT_MUTED),
+            color: Some(theme::text_muted()),
         });
 
-    button(row![bot_icon, text("DeepSeek").size(12).color(theme::TEXT_MUTED)].spacing(4))
+    button(row![bot_icon, text("DeepSeek").size(12).color(theme::text_muted())].spacing(4))
         .padding([4, 10])
         .height(Length::Fixed(28.0))
         .style(|_: &iced::Theme, _status| iced::widget::button::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: 6.0.into(),
                 width: 1.0,
@@ -376,11 +376,11 @@ fn deepseek_button<'a>() -> Element<'a, Message> {
 }
 
 fn moa_toggle<'a>() -> Element<'a, Message> {
-    button(text("MoA").size(12).color(theme::TEXT_MUTED))
+    button(text("MoA").size(12).color(theme::text_muted()))
         .padding([4, 8])
         .height(Length::Fixed(28.0))
         .style(|_: &iced::Theme, _status| iced::widget::button::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: 6.0.into(),
                 width: 1.0,
@@ -400,7 +400,7 @@ fn icon_btn<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a, Messa
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_: &iced::Theme, _s: iced::widget::svg::Status| iced::widget::svg::Style {
-            color: Some(theme::TEXT_MUTED),
+            color: Some(theme::text_muted()),
         });
 
     button(icon)
@@ -411,7 +411,7 @@ fn icon_btn<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a, Messa
             let hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
                 background: if hovered {
-                    Some(Background::Color(theme::BG_HOVER))
+                    Some(Background::Color(theme::bg_hover()))
                 } else {
                     None
                 },
@@ -427,7 +427,7 @@ fn icon_btn_small<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a,
         .width(Length::Fixed(12.0))
         .height(Length::Fixed(12.0))
         .style(|_: &iced::Theme, _s: iced::widget::svg::Status| iced::widget::svg::Style {
-            color: Some(theme::TEXT_MUTED),
+            color: Some(theme::text_muted()),
         });
 
     button(icon)
@@ -438,7 +438,7 @@ fn icon_btn_small<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a,
             let hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
                 background: if hovered {
-                    Some(Background::Color(theme::BG_HOVER))
+                    Some(Background::Color(theme::bg_hover()))
                 } else {
                     None
                 },
@@ -450,11 +450,11 @@ fn icon_btn_small<'a>(name: &'static str, _tooltip: &'static str) -> Element<'a,
 }
 
 fn model_pill<'a>(model: &'static str) -> Element<'a, Message> {
-    button(text(model).size(11).color(theme::TEXT_MUTED))
+    button(text(model).size(11).color(theme::text_muted()))
         .padding([2, 6])
         .height(Length::Fixed(24.0))
         .style(|_: &iced::Theme, _status| iced::widget::button::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: 4.0.into(),
                 width: 1.0,
@@ -466,11 +466,11 @@ fn model_pill<'a>(model: &'static str) -> Element<'a, Message> {
 }
 
 fn mode_pill<'a>(mode: &'static str) -> Element<'a, Message> {
-    button(text(mode).size(11).color(theme::TEXT_MUTED))
+    button(text(mode).size(11).color(theme::text_muted()))
         .padding([2, 6])
         .height(Length::Fixed(24.0))
         .style(|_: &iced::Theme, _status| iced::widget::button::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: 4.0.into(),
                 width: 1.0,
@@ -573,7 +573,7 @@ fn markdown_view<'a>(content: &'a str) -> Element<'a, Message> {
                 .iter()
                 .map(|it| {
                     let mut spans = vec![
-                        span("•  ".to_string()).size(13).color(theme::TEXT_PRIMARY),
+                        span("•  ".to_string()).size(13).color(theme::text_primary()),
                     ];
                     spans.extend(parse_inline(*it, 13.0));
                     container(rich_text(spans)).into()
@@ -640,7 +640,7 @@ fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
 
     let flush = |plain: &mut String, out: &mut Vec<Span<'a, Message>>| {
         if !plain.is_empty() {
-            out.push(span(std::mem::take(plain)).size(size).color(theme::TEXT_PRIMARY));
+            out.push(span(std::mem::take(plain)).size(size).color(theme::text_primary()));
         }
     };
 
@@ -659,7 +659,7 @@ fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
                 span(code)
                     .size(size)
                     .font(iced::Font::MONOSPACE)
-                    .color(theme::TEXT_PRIMARY),
+                    .color(theme::text_primary()),
             );
             continue;
         }
@@ -673,7 +673,7 @@ fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
                 j += 1;
             }
             i = (j + 2).min(n);
-            out.push(span(bold).size(size).font(bold_font()).color(theme::TEXT_PRIMARY));
+            out.push(span(bold).size(size).font(bold_font()).color(theme::text_primary()));
             continue;
         }
         // 斜体 *text*
@@ -686,7 +686,7 @@ fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
                 j += 1;
             }
             i = (j + 1).min(n);
-            out.push(span(ital).size(size).color(theme::TEXT_MUTED));
+            out.push(span(ital).size(size).color(theme::text_muted()));
             continue;
         }
         // 链接 [label](url)
@@ -709,7 +709,7 @@ fn parse_inline<'a>(src: &str, size: f32) -> Vec<Span<'a, Message>> {
                     out.push(
                         span(label)
                             .size(size)
-                            .color(theme::ACCENT)
+                            .color(theme::accent())
                             .underline(true)
                             .link(Message::LinkClicked(url)),
                     );
@@ -739,7 +739,7 @@ fn heading_span<'a>(text: &str, size: f32) -> Element<'a, Message> {
         rich_text(vec![span(text.to_string())
             .size(size)
             .font(bold_font())
-            .color(theme::TEXT_PRIMARY)]),
+            .color(theme::text_primary())]),
     )
     .into()
 }
@@ -753,19 +753,19 @@ fn thinking_view<'a>(
 ) -> Element<'a, Message> {
     let chevron = text(if collapsed { "▸" } else { "▾" })
         .size(12)
-        .color(theme::TEXT_MUTED);
+        .color(theme::text_muted());
 
     let brain = Svg::from_path(asset_path("brain"))
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_: &iced::Theme, _| iced::widget::svg::Style {
-            color: Some(theme::ACCENT_ORANGE),
+            color: Some(theme::semantic_orange()),
         });
 
-    let label = text("思考过程").size(12).color(theme::TEXT_MUTED);
+    let label = text("思考过程").size(12).color(theme::text_muted());
 
     let header_right = if collapsed {
-        container(text(summary).size(12).color(theme::TEXT_MUTED))
+        container(text(summary).size(12).color(theme::text_muted()))
             .width(Length::Fill)
             .padding(theme::pad(0.0, 8.0, 0.0, 8.0))
     } else {
@@ -809,7 +809,7 @@ fn thinking_view<'a>(
 
 fn code_block_view<'a>(language: Option<&'a str>, code: &'a str) -> Element<'a, Message> {
     let header = row![
-        text(language.unwrap_or("text")).size(11).color(theme::TEXT_MUTED),
+        text(language.unwrap_or("text")).size(11).color(theme::text_muted()),
         Space::new().width(Length::Fill).height(Length::Shrink),
     ]
     .padding([6, 10])
@@ -817,7 +817,7 @@ fn code_block_view<'a>(language: Option<&'a str>, code: &'a str) -> Element<'a, 
 
     let body = text(code)
         .size(12)
-        .color(theme::TEXT_PRIMARY)
+        .color(theme::text_primary())
         .font(iced::Font::MONOSPACE);
 
     container(column![header, body].spacing(0))
@@ -840,7 +840,7 @@ fn tool_call_view<'a>(name: &'a str, status: ToolStatus, result: &'a str) -> Ele
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_: &iced::Theme, _| iced::widget::svg::Style {
-            color: Some(theme::TEXT_MUTED),
+            color: Some(theme::text_muted()),
         });
 
     let status_color = status.accent();
@@ -859,13 +859,13 @@ fn tool_call_view<'a>(name: &'a str, status: ToolStatus, result: &'a str) -> Ele
 
     let header = row![
         icon,
-        text(name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
+        text(name).size(13).color(theme::text_primary()).width(Length::Fill),
         status_pill,
     ]
     .spacing(8)
     .align_y(Alignment::Center);
 
-    let result_text = text(result).size(12).color(theme::TEXT_MUTED);
+    let result_text = text(result).size(12).color(theme::text_muted());
 
     container(column![header, result_text].spacing(6).padding(12))
         .width(Length::Fill)

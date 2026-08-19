@@ -113,7 +113,7 @@ fn semibold_font() -> Font {
 fn rule_h<'a>() -> Element<'a, Message> {
     rule::horizontal(1.0)
         .style(|_: &iced::Theme| rule::Style {
-            color: theme::SEPARATOR,
+            color: theme::separator(),
             radius: 0.0.into(),
             fill_mode: rule::FillMode::Full,
             snap: true,
@@ -134,10 +134,10 @@ fn rule_light<'a>() -> Element<'a, Message> {
 
 /// 小尺寸药丸（会话数 / 计数）：muted/50 底 + muted 字（对齐 Tauri bg-muted/50）
 fn muted_chip(label: String) -> Element<'static, Message> {
-    container(text(label).size(10).color(theme::TEXT_MUTED))
+    container(text(label).size(10).color(theme::text_muted()))
         .padding(theme::pad(1.0, 6.0, 1.0, 6.0))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::with_alpha(theme::BG_MUTED, 0.5))),
+            background: Some(Background::Color(theme::with_alpha(theme::bg_muted(), 0.5))),
             border: Border {
                 radius: 4.0.into(),
                 width: 0.0,
@@ -151,8 +151,8 @@ fn muted_chip(label: String) -> Element<'static, Message> {
 /// 默认 Agent 徽标（中性灰底，含 Star 图标；对齐 Tauri bg-muted text-muted-foreground）
 fn default_badge<'a>() -> Element<'a, Message> {
     let inner = row![
-        svg_icon("star", 9.0, theme::TEXT_MUTED),
-        text("默认").size(9).color(theme::TEXT_MUTED),
+        svg_icon("star", 9.0, theme::text_muted()),
+        text("默认").size(9).color(theme::text_muted()),
     ]
     .spacing(2.0)
     .align_y(Alignment::Center);
@@ -160,7 +160,7 @@ fn default_badge<'a>() -> Element<'a, Message> {
     container(inner)
         .padding(theme::pad(1.0, 6.0, 1.0, 6.0))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_MUTED)),
+            background: Some(Background::Color(theme::bg_muted())),
             border: Border {
                 radius: 999.0.into(),
                 width: 0.0,
@@ -173,10 +173,10 @@ fn default_badge<'a>() -> Element<'a, Message> {
 
 /// 自动发现项目徽标（muted/50 底）
 fn auto_badge<'a>() -> Element<'a, Message> {
-    container(text("自动").size(10).color(theme::TEXT_MUTED))
+    container(text("自动").size(10).color(theme::text_muted()))
         .padding(theme::pad(1.0, 6.0, 1.0, 6.0))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::with_alpha(theme::BG_MUTED, 0.5))),
+            background: Some(Background::Color(theme::with_alpha(theme::bg_muted(), 0.5))),
             border: Border {
                 radius: 999.0.into(),
                 width: 0.0,
@@ -225,8 +225,8 @@ fn agent_avatar<'a>(color: Color) -> Element<'a, Message> {
 /// 元信息小图标 + 文字（Cpu/Plug/Package）
 fn meta_chip(icon: &str, label: String) -> Element<'static, Message> {
     row![
-        svg_icon(icon, 9.0, theme::TEXT_MUTED),
-        text(label).size(10).color(theme::TEXT_MUTED),
+        svg_icon(icon, 9.0, theme::text_muted()),
+        text(label).size(10).color(theme::text_muted()),
     ]
     .spacing(3.0)
     .align_y(Alignment::Center)
@@ -237,13 +237,13 @@ fn meta_chip(icon: &str, label: String) -> Element<'static, Message> {
 fn lead_icon_box<'a>(p: &'a ProjectNode) -> Element<'a, Message> {
     let accent = theme::accent_of(&p.color);
     let inner: Element<'a, Message> = if p.is_no_project {
-        svg_icon("house", 13.0, theme::TEXT_MUTED)
+        svg_icon("house", 13.0, theme::text_muted())
     } else if p.color.is_some() && p.icon.is_none() {
         color_dot(12.0, accent)
     } else if let Some(ic) = &p.icon {
         svg_icon(ic, 13.0, accent)
     } else {
-        svg_icon("folder-kanban", 13.0, theme::TEXT_MUTED)
+        svg_icon("folder-kanban", 13.0, theme::text_muted())
     };
 
     container(inner)
@@ -252,7 +252,7 @@ fn lead_icon_box<'a>(p: &'a ProjectNode) -> Element<'a, Message> {
         .center_x(Length::Fill)
         .center_y(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::with_alpha(theme::BG_MUTED, 0.5))),
+            background: Some(Background::Color(theme::with_alpha(theme::bg_muted(), 0.5))),
             border: Border {
                 radius: 6.0.into(),
                 width: 0.0,
@@ -280,21 +280,21 @@ fn section_header<'a>(
     let new_btn: Element<'a, Message> = match create {
         Some(kind) => button(
             row![
-                svg_icon("plus", 12.0, theme::TEXT_ON_ACCENT),
+                svg_icon("plus", 12.0, theme::text_on_accent()),
                 text(new_label).size(11),
             ]
             .spacing(4.0)
             .align_y(Alignment::Center),
         )
-        .style(move |_: &iced::Theme, s| theme::primary_pill(s, theme::ACCENT))
+        .style(move |_: &iced::Theme, s| theme::primary_pill(s))
         .on_press(Message::OpenCreateDialog(kind))
         .into(),
         None => Space::new().into(),
     };
 
     row![
-        text(label).size(10).font(semibold_font()).color(theme::with_alpha(theme::TEXT_MUTED, 0.6)),
-        text(format!("{count}")).size(10).color(theme::with_alpha(theme::TEXT_MUTED, 0.4)),
+        text(label).size(10).font(semibold_font()).color(theme::with_alpha(theme::text_muted(), 0.6)),
+        text(format!("{count}")).size(10).color(theme::with_alpha(theme::text_muted(), 0.4)),
         Space::new().width(Length::Fill),
         new_btn,
     ]
@@ -346,7 +346,7 @@ fn accent_bar<'a>(selected: bool, accent: Color) -> Element<'a, Message> {
 fn card_shadow(selected: bool) -> Shadow {
     if selected {
         Shadow {
-            color: theme::SHADOW_HEAVY,
+            color: theme::shadow_heavy(),
             offset: Vector::new(0.0, 6.0),
             blur_radius: 18.0,
         }
@@ -389,14 +389,14 @@ fn profile_card<'a>(state: &'a State, p: &'a AgentProfile) -> Element<'a, Messag
             text(&p.display_name)
                 .size(12)
                 .font(medium_font())
-                .color(theme::TEXT_PRIMARY)
+                .color(theme::text_primary())
                 .into(),
         ];
         if p.display_name != p.id {
             name_row_items.push(
                 text(format!("({})", p.id))
                     .size(10)
-                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.6))
+                    .color(theme::with_alpha(theme::text_muted(), 0.6))
                     .into(),
             );
         }
@@ -412,7 +412,7 @@ fn profile_card<'a>(state: &'a State, p: &'a AgentProfile) -> Element<'a, Messag
             None => meta.push(
                 text("未配置模型")
                     .size(10)
-                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.4))
+                    .color(theme::with_alpha(theme::text_muted(), 0.4))
                     .into(),
             ),
         }
@@ -486,7 +486,7 @@ fn overview_view<'a>(state: &'a State) -> Element<'a, Message> {
 
 fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message> {
     // 选中态 chrome 统一用主题 primary（对齐 Tauri：项目卡片描边/竖条/投影=主题色）
-    let accent = theme::ACCENT;
+    let accent = theme::accent();
     let selected = state.selected_project.as_deref() == Some(p.id.as_str());
     let is_open = state.expanded_projects.contains(&p.id);
 
@@ -495,12 +495,12 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
         let chevron = button(svg_icon(
             if is_open { "chevron-down" } else { "chevron-right" },
             14.0,
-            theme::TEXT_MUTED,
+            theme::text_muted(),
         ))
         .style(|_: &iced::Theme, s| {
             let bg = match s {
                 button::Status::Hovered | button::Status::Pressed => {
-                    Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.30)))
+                    Some(Background::Color(theme::with_alpha(theme::accent(), 0.30)))
                 }
                 _ => None,
             };
@@ -521,7 +521,7 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
             text(&p.label)
                 .size(12)
                 .font(medium_font())
-                .color(theme::TEXT_PRIMARY)
+                .color(theme::text_primary())
                 .into(),
         ];
         if !p.is_no_project {
@@ -534,7 +534,7 @@ fn project_card<'a>(state: &'a State, p: &'a ProjectNode) -> Element<'a, Message
             name_items.push(
                 text(&p.last_active)
                     .size(10)
-                    .color(theme::with_alpha(theme::TEXT_MUTED, 0.5))
+                    .color(theme::with_alpha(theme::text_muted(), 0.5))
                     .into(),
             );
         }
@@ -576,7 +576,7 @@ fn preview_block<'a>(p: &'a ProjectNode, active_id: Option<&str>) -> Element<'a,
     let rows: Vec<Element<'a, Message>> = if p.preview_sessions.is_empty() {
         vec![text("暂无会话")
             .size(10)
-            .color(theme::with_alpha(theme::TEXT_MUTED, 0.5))
+            .color(theme::with_alpha(theme::text_muted(), 0.5))
             .into()]
     } else {
         p.preview_sessions
@@ -593,23 +593,23 @@ fn preview_block<'a>(p: &'a ProjectNode, active_id: Option<&str>) -> Element<'a,
 /// 预览会话行：状态点 + 消息图标 + 标题 + 时间（pl-6 缩进；对齐 Tauri SessionItem）
 fn preview_session_row<'a>(s: &'a SessionPreview, active: bool) -> Element<'a, Message> {
     let title_color = if active {
-        theme::ACCENT_ORANGE
+        theme::semantic_orange()
     } else {
-        theme::TEXT_PRIMARY
+        theme::text_primary()
     };
     let icon_color = if active {
-        theme::ACCENT_ORANGE
+        theme::semantic_orange()
     } else {
-        theme::TEXT_MUTED
+        theme::text_muted()
     };
-    let dot = color_dot(6.0, if active { theme::ACCENT_ORANGE } else { theme::TEXT_MUTED });
+    let dot = color_dot(6.0, if active { theme::semantic_orange() } else { theme::text_muted() });
 
     row![
         dot,
         svg_icon("message-square", 12.0, icon_color),
         text(&s.title).size(12).color(title_color),
         Space::new().width(Length::Fill),
-        text(&s.last_active).size(10).color(theme::TEXT_MUTED),
+        text(&s.last_active).size(10).color(theme::text_muted()),
     ]
     .spacing(6.0)
     .align_y(Alignment::Center)
@@ -629,8 +629,8 @@ fn drill_view<'a>(state: &'a State, project_id: &str) -> Element<'a, Message> {
 
     let back = button(
         row![
-            svg_icon("arrow-left", 14.0, theme::TEXT_PRIMARY),
-            text("项目").size(12).color(theme::TEXT_PRIMARY),
+            svg_icon("arrow-left", 14.0, theme::text_primary()),
+            text("项目").size(12).color(theme::text_primary()),
         ]
         .spacing(4.0)
         .align_y(Alignment::Center),
@@ -638,7 +638,7 @@ fn drill_view<'a>(state: &'a State, project_id: &str) -> Element<'a, Message> {
     .style(|_: &iced::Theme, s| {
         let bg = match s {
             button::Status::Hovered | button::Status::Pressed => {
-                Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.30)))
+                Some(Background::Color(theme::with_alpha(theme::accent(), 0.30)))
             }
             _ => None,
         };
@@ -680,8 +680,8 @@ fn drill_repo<'a>(repo: &'a RepoNode) -> Element<'a, Message> {
 
     column![
         row![
-            svg_icon("folder-git", 13.0, theme::TEXT_MUTED),
-            text(&repo.label).size(12).font(bold_font()).color(theme::TEXT_PRIMARY),
+            svg_icon("folder-git", 13.0, theme::text_muted()),
+            text(&repo.label).size(12).font(bold_font()).color(theme::text_primary()),
             Space::new().width(Length::Fill),
             muted_chip(format!("{}", repo.session_count)),
         ]
@@ -699,8 +699,8 @@ fn drill_lane<'a>(lane: &'a LaneGroup) -> Element<'a, Message> {
 
     column![
         row![
-            svg_icon("git-branch", 12.0, theme::TEXT_MUTED),
-            text(&lane.label).size(12).color(theme::TEXT_PRIMARY),
+            svg_icon("git-branch", 12.0, theme::text_muted()),
+            text(&lane.label).size(12).color(theme::text_primary()),
             Space::new().width(Length::Fill),
             muted_chip(format!("{}", lane.session_count)),
         ]
@@ -717,11 +717,11 @@ fn drill_lane<'a>(lane: &'a LaneGroup) -> Element<'a, Message> {
 
 fn drill_session<'a>(s: &'a SessionPreview) -> Element<'a, Message> {
     row![
-        color_dot(6.0, theme::TEXT_MUTED),
-        svg_icon("message-square", 12.0, theme::TEXT_MUTED),
-        text(&s.title).size(12).color(theme::TEXT_PRIMARY),
+        color_dot(6.0, theme::text_muted()),
+        svg_icon("message-square", 12.0, theme::text_muted()),
+        text(&s.title).size(12).color(theme::text_primary()),
         Space::new().width(Length::Fill),
-        text(&s.last_active).size(10).color(theme::TEXT_MUTED),
+        text(&s.last_active).size(10).color(theme::text_muted()),
     ]
     .spacing(6.0)
     .align_y(Alignment::Center)
@@ -748,60 +748,60 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
                 text_input::Status::Focused { .. } => Border {
                     radius: 6.0.into(),
                     width: 1.0,
-                    color: theme::with_alpha(theme::ACCENT, 0.6),
+                    color: theme::with_alpha(theme::accent(), 0.6),
                 },
                 _ => Border {
                     radius: 6.0.into(),
                     width: 1.0,
-                    color: theme::SEPARATOR,
+                    color: theme::separator(),
                 },
             };
             text_input::Style {
-                background: Background::Color(theme::BG_MUTED),
+                background: Background::Color(theme::bg_muted()),
                 border,
                 icon: Color::TRANSPARENT,
-                placeholder: theme::TEXT_MUTED,
-                value: theme::TEXT_PRIMARY,
-                selection: theme::ACCENT,
+                placeholder: theme::text_muted(),
+                value: theme::text_primary(),
+                selection: theme::accent(),
             }
         });
 
     let card_content = column![
         row![
-            text(title).size(15).font(bold_font()).color(theme::TEXT_PRIMARY),
+            text(title).size(15).font(bold_font()).color(theme::text_primary()),
             Space::new().width(Length::Fill),
             close_x(),
         ]
         .align_y(Alignment::Center),
-        text(subtitle).size(11).color(theme::with_alpha(theme::TEXT_MUTED, 0.6)),
+        text(subtitle).size(11).color(theme::with_alpha(theme::text_muted(), 0.6)),
         column![
-            text("名称").size(12).color(theme::TEXT_PRIMARY),
+            text("名称").size(12).color(theme::text_primary()),
             input,
         ]
         .spacing(6.0),
         row![
-            button(text("取消").size(13).color(theme::TEXT_PRIMARY))
+            button(text("取消").size(13).color(theme::text_primary()))
                 .style(|_: &iced::Theme, s| {
                     let bg = match s {
                         button::Status::Hovered | button::Status::Pressed => {
-                            Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.30)))
+                            Some(Background::Color(theme::with_alpha(theme::accent(), 0.30)))
                         }
                         _ => None,
                     };
                     button::Style {
                         background: bg,
-                        text_color: theme::TEXT_MUTED,
+                        text_color: theme::text_muted(),
                         border: Border {
                             radius: 8.0.into(),
                             width: 1.0,
-                            color: theme::SEPARATOR,
+                            color: theme::separator(),
                         },
                         ..Default::default()
                     }
                 })
                 .on_press(Message::CloseCreateDialog),
-            button(text("创建").size(13).color(theme::TEXT_ON_ACCENT))
-                .style(move |_: &iced::Theme, s| theme::primary_pill(s, theme::ACCENT))
+            button(text("创建").size(13).color(theme::text_on_accent()))
+                .style(move |_: &iced::Theme, s| theme::primary_pill(s))
                 .on_press(Message::ConfirmCreate),
         ]
         .spacing(8.0)
@@ -817,14 +817,14 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
         .width(Length::Fixed(360.0))
         .padding(theme::pad(18.0, 18.0, 18.0, 18.0))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_ELEVATED)),
+            background: Some(Background::Color(theme::bg_elevated())),
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
                 width: 1.0,
-                color: theme::SEPARATOR,
+                color: theme::separator(),
             },
             shadow: Shadow {
-                color: theme::SHADOW_HEAVY,
+                color: theme::shadow_heavy(),
                 offset: Vector::new(0.0, 8.0),
                 blur_radius: 24.0,
             },
@@ -861,11 +861,11 @@ pub fn create_dialog_view<'a>(state: &'a State, kind: CreateDialog) -> Element<'
 }
 
 fn close_x<'a>() -> Element<'a, Message> {
-    button(svg_icon("x", 13.0, theme::with_alpha(theme::TEXT_MUTED, 0.6)))
+    button(svg_icon("x", 13.0, theme::with_alpha(theme::text_muted(), 0.6)))
         .style(move |_: &iced::Theme, s| {
             let col = match s {
-                button::Status::Hovered | button::Status::Pressed => theme::TEXT_PRIMARY,
-                _ => theme::with_alpha(theme::TEXT_MUTED, 0.6),
+                button::Status::Hovered | button::Status::Pressed => theme::text_primary(),
+                _ => theme::with_alpha(theme::text_muted(), 0.6),
             };
             button::Style {
                 background: None,
@@ -884,16 +884,16 @@ fn close_x<'a>() -> Element<'a, Message> {
 
 /// Agent 删除按钮：hover 转危险红（对齐 Tauri hover:text-destructive hover:bg-destructive/10）
 fn delete_button<'a>(id: String) -> Element<'a, Message> {
-    button(svg_icon("trash-2", 14.0, theme::with_alpha(theme::TEXT_MUTED, 0.5)))
+    button(svg_icon("trash-2", 14.0, theme::with_alpha(theme::text_muted(), 0.5)))
         .width(Length::Fixed(28.0))
         .height(Length::Fixed(28.0))
         .style(move |_: &iced::Theme, s| {
             let (bg, col) = match s {
                 button::Status::Hovered | button::Status::Pressed => (
-                    Some(Background::Color(theme::with_alpha(theme::DESTRUCTIVE, 0.12))),
-                    theme::DESTRUCTIVE,
+                    Some(Background::Color(theme::with_alpha(theme::destructive(), 0.12))),
+                    theme::destructive(),
                 ),
-                _ => (None, theme::with_alpha(theme::TEXT_MUTED, 0.5)),
+                _ => (None, theme::with_alpha(theme::text_muted(), 0.5)),
             };
             button::Style {
                 background: bg,
@@ -911,17 +911,17 @@ fn kebab_button<'a>(id: String) -> Element<'a, Message> {
     button(svg_icon(
         "ellipsis-vertical",
         15.0,
-        theme::with_alpha(theme::TEXT_MUTED, 0.6),
+        theme::with_alpha(theme::text_muted(), 0.6),
     ))
     .width(Length::Fixed(28.0))
     .height(Length::Fixed(28.0))
     .style(move |_: &iced::Theme, s| {
         let (bg, col) = match s {
             button::Status::Hovered | button::Status::Pressed => (
-                Some(Background::Color(theme::with_alpha(theme::ACCENT, 0.30))),
-                theme::TEXT_PRIMARY,
+                Some(Background::Color(theme::with_alpha(theme::accent(), 0.30))),
+                theme::text_primary(),
             ),
-            _ => (None, theme::with_alpha(theme::TEXT_MUTED, 0.6)),
+            _ => (None, theme::with_alpha(theme::text_muted(), 0.6)),
         };
         button::Style {
             background: bg,

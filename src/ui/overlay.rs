@@ -40,7 +40,7 @@ fn titled_card<'a>(title: &'static str, body: Element<'a, Message>, w: f32, h: f
     let close_btn = icon_close();
 
     let header = row![
-        text(title).size(16).color(theme::TEXT_PRIMARY).width(Length::Fill),
+        text(title).size(16).color(theme::text_primary()).width(Length::Fill),
         close_btn,
     ]
     .spacing(8)
@@ -49,7 +49,7 @@ fn titled_card<'a>(title: &'static str, body: Element<'a, Message>, w: f32, h: f
 
     let sep = container(Space::new().width(Length::Fill).height(Length::Fixed(1.0)))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::SEPARATOR)),
+            background: Some(Background::Color(theme::separator())),
             ..Default::default()
         });
 
@@ -87,11 +87,11 @@ fn card_shell<'a>(inner: Element<'a, Message>, w: f32, h: f32) -> Element<'a, Me
         .width(Length::Fixed(w))
         .height(Length::Fixed(h))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
                 width: 1.0,
-                color: theme::SEPARATOR,
+                color: theme::separator(),
             },
             ..Default::default()
         });
@@ -101,14 +101,14 @@ fn card_shell<'a>(inner: Element<'a, Message>, w: f32, h: f32) -> Element<'a, Me
 }
 
 fn icon_close<'a>() -> Element<'a, Message> {
-    button(text("✕").size(14).color(theme::TEXT_MUTED))
+    button(text("✕").size(14).color(theme::text_muted()))
         .width(Length::Fixed(28.0))
         .height(Length::Fixed(28.0))
         .padding(0)
         .style(|_: &iced::Theme, status| {
             let hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
-                background: if hovered { Some(Background::Color(theme::BG_HOVER)) } else { None },
+                background: if hovered { Some(Background::Color(theme::bg_hover())) } else { None },
                 border: Border::default(),
                 ..Default::default()
             }

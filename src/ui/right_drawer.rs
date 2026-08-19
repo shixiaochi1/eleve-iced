@@ -37,7 +37,7 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
         .width(Length::Fixed(theme::RIGHT_DRAWER_WIDTH))
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::BG_CARD)),
+            background: Some(Background::Color(theme::bg_card())),
             border: Border {
                 radius: theme::CARD_RADIUS.into(),
                 width: 0.0,
@@ -64,14 +64,14 @@ fn tab_bar<'a>(state: &'a State) -> Element<'a, Message> {
     }
 
     // 关闭按钮（✕，右侧）
-    let close_btn = button(text("✕").size(13).color(theme::TEXT_MUTED))
+    let close_btn = button(text("✕").size(13).color(theme::text_muted()))
         .width(Length::Fixed(26.0))
         .height(Length::Fixed(26.0))
         .padding(0)
         .style(|_: &iced::Theme, status| {
             let hovered = matches!(status, iced::widget::button::Status::Hovered);
             iced::widget::button::Style {
-                background: if hovered { Some(Background::Color(theme::BG_HOVER)) } else { None },
+                background: if hovered { Some(Background::Color(theme::bg_hover())) } else { None },
                 border: Border::default(),
                 ..Default::default()
             }
@@ -89,7 +89,7 @@ fn tab_bar<'a>(state: &'a State) -> Element<'a, Message> {
 
     let separator = rule::horizontal(1.0)
         .style(|_: &iced::Theme| rule::Style {
-            color: theme::SEPARATOR,
+            color: theme::separator(),
             radius: 0.0.into(),
             fill_mode: rule::FillMode::Full,
             snap: true,
@@ -106,7 +106,7 @@ fn tab_bar<'a>(state: &'a State) -> Element<'a, Message> {
 }
 
 fn tab_button<'a>(icon: &'static str, label: &'static str, is_active: bool, tab: RightTab) -> Element<'a, Message> {
-    let color = if is_active { theme::ACCENT } else { theme::TEXT_MUTED };
+    let color = if is_active { theme::accent() } else { theme::text_muted() };
     let btn = button(
         row![
             Svg::from_path(asset_path(icon))
@@ -136,7 +136,7 @@ fn tab_button<'a>(icon: &'static str, label: &'static str, is_active: bool, tab:
             btn,
             container(Space::new().width(Length::Fill).height(Length::Fixed(2.0)))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(Background::Color(theme::ACCENT)),
+                    background: Some(Background::Color(theme::accent())),
                     ..Default::default()
                 }),
         ]
@@ -158,7 +158,7 @@ fn terminal_view<'a>() -> Element<'a, Message> {
     ];
     let rows: Vec<Element<'a, Message>> = lines
         .iter()
-        .map(|l| text(*l).size(12).color(theme::TEXT_PRIMARY).font(iced::Font::MONOSPACE).into())
+        .map(|l| text(*l).size(12).color(theme::text_primary()).font(iced::Font::MONOSPACE).into())
         .collect();
 
     container(scrollable(column(rows).spacing(4).padding(12)))
@@ -184,9 +184,9 @@ fn preview_view<'a>() -> Element<'a, Message> {
             Svg::from_path(asset_path("globe"))
                 .width(Length::Fixed(40.0))
                 .height(Length::Fixed(40.0))
-                .style(|_: &iced::Theme, _| iced::widget::svg::Style { color: Some(theme::TEXT_MUTED) }),
-            text("预览中心").size(14).color(theme::TEXT_PRIMARY),
-            text("选择一个产物或文件以在此预览").size(12).color(theme::TEXT_MUTED),
+                .style(|_: &iced::Theme, _| iced::widget::svg::Style { color: Some(theme::text_muted()) }),
+            text("预览中心").size(14).color(theme::text_primary()),
+            text("选择一个产物或文件以在此预览").size(12).color(theme::text_muted()),
         ]
         .spacing(10)
         .align_x(Alignment::Center),
@@ -217,9 +217,9 @@ fn artifacts_view<'a>() -> Element<'a, Message> {
                 Svg::from_path(asset_path("box"))
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
-                    .style(|_: &iced::Theme, _| iced::widget::svg::Style { color: Some(theme::TEXT_MUTED) }),
-                text(*name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
-                text(*meta).size(11).color(theme::TEXT_MUTED),
+                    .style(|_: &iced::Theme, _| iced::widget::svg::Style { color: Some(theme::text_muted()) }),
+                text(*name).size(13).color(theme::text_primary()).width(Length::Fill),
+                text(*meta).size(11).color(theme::text_muted()),
             ]
             .spacing(10)
             .padding([10, 12])

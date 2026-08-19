@@ -24,7 +24,7 @@ pub fn section_view<'a>(state: &'a State, panel: LeftPanel) -> Element<'a, Messa
         _ => ("", column![].into()),
     };
 
-    let header = row![text(title).size(16).color(theme::TEXT_PRIMARY)]
+    let header = row![text(title).size(16).color(theme::text_primary())]
         .padding([14, 18])
         .align_y(Alignment::Center);
 
@@ -58,8 +58,8 @@ fn cron_body<'a>() -> Element<'a, Message> {
         .map(|(name, time, status)| {
             let on = status == &"已启用";
             row![
-                text(*name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
-                text(*time).size(12).color(theme::TEXT_MUTED),
+                text(*name).size(13).color(theme::text_primary()).width(Length::Fill),
+                text(*time).size(12).color(theme::text_muted()),
                 status_pill(*status, on),
             ]
             .spacing(12)
@@ -102,8 +102,8 @@ fn tools_body<'a>() -> Element<'a, Message> {
 fn tool_card<'a>(name: &'a str, desc: &'a str) -> Element<'a, Message> {
     container(
         column![
-            text(name).size(13).color(theme::TEXT_PRIMARY),
-            text(desc).size(11).color(theme::TEXT_MUTED),
+            text(name).size(13).color(theme::text_primary()),
+            text(desc).size(11).color(theme::text_muted()),
         ]
         .spacing(6)
         .padding(14),
@@ -111,7 +111,7 @@ fn tool_card<'a>(name: &'a str, desc: &'a str) -> Element<'a, Message> {
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
         background: Some(Background::Color(Color::from_rgb(0.11, 0.12, 0.14))),
-        border: Border { radius: 10.0.into(), width: 1.0, color: theme::SEPARATOR },
+        border: Border { radius: 10.0.into(), width: 1.0, color: theme::separator() },
         ..Default::default()
     })
     .into()
@@ -129,7 +129,7 @@ fn learn_body<'a>() -> Element<'a, Message> {
         .iter()
         .map(|(name, prog)| {
             row![
-                text(*name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
+                text(*name).size(13).color(theme::text_primary()).width(Length::Fill),
                 progress_bar(prog),
             ]
             .spacing(12)
@@ -154,8 +154,8 @@ fn channels_body<'a>() -> Element<'a, Message> {
         .iter()
         .map(|(name, count)| {
             row![
-                text(*name).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
-                text(*count).size(11).color(theme::TEXT_MUTED),
+                text(*name).size(13).color(theme::text_primary()).width(Length::Fill),
+                text(*count).size(11).color(theme::text_muted()),
             ]
             .spacing(12)
             .padding([12, 12])
@@ -184,7 +184,7 @@ fn usage_body<'a>() -> Element<'a, Message> {
 
     let detail = container(
         column![
-            text("Token 消耗趋势（近 7 天）").size(12).color(theme::TEXT_MUTED),
+            text("Token 消耗趋势（近 7 天）").size(12).color(theme::text_muted()),
             mini_bars(),
         ]
         .spacing(10),
@@ -192,7 +192,7 @@ fn usage_body<'a>() -> Element<'a, Message> {
     .padding(14.0)
     .style(|_: &iced::Theme| container::Style {
         background: Some(Background::Color(Color::from_rgb(0.11, 0.12, 0.14))),
-        border: Border { radius: 10.0.into(), width: 1.0, color: theme::SEPARATOR },
+        border: Border { radius: 10.0.into(), width: 1.0, color: theme::separator() },
         ..Default::default()
     });
 
@@ -202,8 +202,8 @@ fn usage_body<'a>() -> Element<'a, Message> {
 fn stat_card<'a>(label: &'a str, value: &'a str) -> Element<'a, Message> {
     container(
         column![
-            text(value).size(20).color(theme::TEXT_PRIMARY),
-            text(label).size(11).color(theme::TEXT_MUTED),
+            text(value).size(20).color(theme::text_primary()),
+            text(label).size(11).color(theme::text_muted()),
         ]
         .spacing(6)
         .padding(14),
@@ -211,7 +211,7 @@ fn stat_card<'a>(label: &'a str, value: &'a str) -> Element<'a, Message> {
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
         background: Some(Background::Color(Color::from_rgb(0.11, 0.12, 0.14))),
-        border: Border { radius: 10.0.into(), width: 1.0, color: theme::SEPARATOR },
+        border: Border { radius: 10.0.into(), width: 1.0, color: theme::separator() },
         ..Default::default()
     })
     .into()
@@ -226,7 +226,7 @@ fn mini_bars<'a>() -> Element<'a, Message> {
                 .width(Length::Fixed(28.0))
                 .height(Length::Fixed(80.0 * *h))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(Background::Color(theme::ACCENT)),
+                    background: Some(Background::Color(theme::accent())),
                     border: Border { radius: 4.0.into(), ..Default::default() },
                     ..Default::default()
                 })
@@ -255,7 +255,7 @@ fn debug_body<'a>() -> Element<'a, Message> {
             } else if line.contains("WARN") {
                 Color::from_rgb(0.85, 0.62, 0.20)
             } else {
-                theme::TEXT_MUTED
+                theme::text_muted()
             };
             text(*line).size(11).color(color).font(iced::Font::MONOSPACE).into()
         })
@@ -275,8 +275,8 @@ fn gateway_body<'a>(_state: &'a State) -> Element<'a, Message> {
     .iter()
     .map(|(k, v)| {
         row![
-            text(*k).size(13).color(theme::TEXT_MUTED).width(Length::Fill),
-            text(*v).size(13).color(theme::TEXT_PRIMARY),
+            text(*k).size(13).color(theme::text_muted()).width(Length::Fill),
+            text(*v).size(13).color(theme::text_primary()),
         ]
         .spacing(12)
         .padding([10, 12])
@@ -311,7 +311,7 @@ fn status_pill<'a>(label: &'a str, on: bool) -> Element<'a, Message> {
 fn progress_bar<'a>(_label: &'a str) -> Element<'a, Message> {
     container(Space::new().width(Length::Fixed(80.0)).height(Length::Fixed(6.0)))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(Background::Color(theme::SEPARATOR)),
+            background: Some(Background::Color(theme::separator())),
             border: Border { radius: 3.0.into(), ..Default::default() },
             ..Default::default()
         })
@@ -331,8 +331,8 @@ pub fn settings_view<'a>(state: &'a State) -> Element<'a, Message> {
         .map(|(i, g)| {
             let selected = i == 0;
             row![
-                text(*g).size(13).color(if selected { theme::ACCENT } else { theme::TEXT_PRIMARY }).width(Length::Fill),
-                if selected { text("●").size(10).color(theme::ACCENT) } else { text("").size(10) },
+                text(*g).size(13).color(if selected { theme::accent() } else { theme::text_primary() }).width(Length::Fill),
+                if selected { text("●").size(10).color(theme::accent()) } else { text("").size(10) },
             ]
             .spacing(8)
             .padding([10, 14])
@@ -354,7 +354,7 @@ pub fn settings_view<'a>(state: &'a State) -> Element<'a, Message> {
         .collect();
 
     let right = column![
-        text("常规").size(15).color(theme::TEXT_PRIMARY),
+        text("常规").size(15).color(theme::text_primary()),
         Space::new().height(Length::Fixed(8.0)),
         column(toggle_col).spacing(2),
     ]
@@ -381,18 +381,18 @@ fn setting_row<'a>(state: &'a State, label: &'a str, key: &'a str) -> Element<'a
     let on = *state.settings.get(key).unwrap_or(&false);
     let knob = container(Space::new().width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
         .style(move |_: &iced::Theme| container::Style {
-            background: Some(Background::Color(if on { theme::ACCENT } else { theme::SEPARATOR })),
+            background: Some(Background::Color(if on { theme::accent() } else { theme::separator() })),
             border: Border { radius: 8.0.into(), ..Default::default() },
             ..Default::default()
         });
     row![
-        text(label).size(13).color(theme::TEXT_PRIMARY).width(Length::Fill),
+        text(label).size(13).color(theme::text_primary()).width(Length::Fill),
         button(knob)
             .width(Length::Fixed(40.0))
             .height(Length::Fixed(22.0))
             .padding(4)
             .style(move |_: &iced::Theme, _s| iced::widget::button::Style {
-                background: Some(Background::Color(if on { theme::ACCENT } else { Color::from_rgb(0.25, 0.26, 0.28) })),
+                background: Some(Background::Color(if on { theme::accent() } else { Color::from_rgb(0.25, 0.26, 0.28) })),
                 border: Border { radius: 11.0.into(), ..Default::default() },
                 ..Default::default()
             })
@@ -404,38 +404,136 @@ fn setting_row<'a>(state: &'a State, label: &'a str, key: &'a str) -> Element<'a
     .into()
 }
 
-pub fn theme_view<'a>(_state: &'a State) -> Element<'a, Message> {
-    let themes = ["暗色（默认）", "暗色蓝", "午夜", "石墨"];
-    let rows: Vec<Element<'a, Message>> = themes
+pub fn theme_view<'a>(state: &'a State) -> Element<'a, Message> {
+    // ── 外观：浅色 / 深色 / 跟随系统 / 玻璃（→ SetAppearance）──
+    let appearances: [(theme::Appearance, &'static str); 4] = [
+        (theme::Appearance::Light, "浅色"),
+        (theme::Appearance::Dark, "深色"),
+        (theme::Appearance::Auto, "跟随系统"),
+        (theme::Appearance::Glass, "玻璃"),
+    ];
+    let appear_col: Vec<Element<'a, Message>> = appearances
         .iter()
-        .enumerate()
-        .map(|(i, t)| {
-            let selected = i == 0;
-            row![
-                text(*t).size(13).color(if selected { theme::ACCENT } else { theme::TEXT_PRIMARY }).width(Length::Fill),
-                if selected { text("●").size(12).color(theme::ACCENT) } else { text("").size(12) },
-            ]
-            .spacing(8)
-            .padding([12, 16])
-            .align_y(Alignment::Center)
+        .map(|(ap, label)| {
+            let selected = state.appearance == *ap;
+            let check = if selected {
+                text("●").size(12).color(theme::accent())
+            } else {
+                text("").size(12)
+            };
+            button(
+                row![
+                    text(*label).size(13).color(theme::text_primary()).width(Length::Fill),
+                    check,
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            )
+            .width(Length::Fill)
+            .padding([9, 12])
+            .style(move |_: &iced::Theme, _s| iced::widget::button::Style {
+                background: Some(Background::Color(if selected { theme::selection() } else { Color::TRANSPARENT })),
+                border: Border::default(),
+                ..Default::default()
+            })
+            .on_press(Message::SetAppearance(*ap))
             .into()
         })
         .collect();
 
-    container(column(rows).spacing(2))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    // ── 主题色：8 个 macOS 预设色板（→ SetAccent）──
+    let swatch_rows: Vec<Element<'a, Message>> = theme::ACCENT_PRESETS
+        .chunks(4)
+        .map(|chunk| {
+            let cells: Vec<Element<'a, Message>> = chunk
+                .iter()
+                .map(|(name, hex)| {
+                    let color = theme::parse_hex(hex).unwrap_or_else(theme::accent);
+                    let selected = state.accent.eq_ignore_ascii_case(*hex);
+                    let dot = container(Space::new().width(Length::Fixed(26.0)).height(Length::Fixed(26.0)))
+                        .style(move |_: &iced::Theme| container::Style {
+                            background: Some(Background::Color(color)),
+                            border: Border {
+                                radius: 13.0.into(),
+                                width: if selected { 3.0 } else { 0.0 },
+                                color: theme::text_primary(),
+                            },
+                            ..Default::default()
+                        });
+                    button(
+                        column![
+                            dot,
+                            text(*name).size(10).color(if selected { theme::accent() } else { theme::text_muted() }),
+                        ]
+                        .spacing(6)
+                        .align_x(Alignment::Center),
+                    )
+                    .style(|_: &iced::Theme, _s| iced::widget::button::Style {
+                        background: None,
+                        border: Border::default(),
+                        ..Default::default()
+                    })
+                    .on_press(Message::SetAccent(hex.to_string()))
+                    .into()
+                })
+                .collect();
+            row(cells).spacing(16).into()
+        })
+        .collect();
+
+    // ── 字号：小 / 中 / 大（→ SetFontScale）──
+    let fonts: [(theme::FontScale, &'static str); 3] = [
+        (theme::FontScale::Small, "小"),
+        (theme::FontScale::Medium, "中"),
+        (theme::FontScale::Large, "大"),
+    ];
+    let font_row: Vec<Element<'a, Message>> = fonts
+        .iter()
+        .map(|(fs, label)| {
+            let selected = state.font_scale == *fs;
+            button(
+                container(text(*label).size(theme::ts(13.0)).color(if selected { theme::accent() } else { theme::text_primary() }))
+                    .width(Length::Fill)
+                    .align_x(Alignment::Center),
+            )
+            .width(Length::Fill)
+            .padding([9, 0])
+            .style(move |_: &iced::Theme, _s| iced::widget::button::Style {
+                background: Some(Background::Color(if selected { theme::selection() } else { Color::TRANSPARENT })),
+                border: Border::default(),
+                ..Default::default()
+            })
+            .on_press(Message::SetFontScale(*fs))
+            .into()
+        })
+        .collect();
+
+    let content = column![
+        text("外观").size(12).color(theme::text_muted()),
+        Space::new().height(Length::Fixed(6.0)),
+        column(appear_col).spacing(2),
+        Space::new().height(Length::Fixed(18.0)),
+        text("主题色").size(12).color(theme::text_muted()),
+        Space::new().height(Length::Fixed(8.0)),
+        column(swatch_rows).spacing(12),
+        Space::new().height(Length::Fixed(18.0)),
+        text("字号").size(12).color(theme::text_muted()),
+        Space::new().height(Length::Fixed(6.0)),
+        row(font_row).spacing(8),
+    ]
+    .spacing(0);
+
+    scrollable(content).into()
 }
 
 pub fn about_view<'a>(_state: &'a State) -> Element<'a, Message> {
     let content = column![
-        text("ELEVE Agent").size(18).color(theme::TEXT_PRIMARY),
-        text("原生桌面端 · iced 复刻版").size(12).color(theme::TEXT_MUTED),
+        text("ELEVE Agent").size(18).color(theme::text_primary()),
+        text("原生桌面端 · iced 复刻版").size(12).color(theme::text_muted()),
         Space::new().height(Length::Fixed(12.0)),
-        text("版本 0.1.0 (iced)").size(12).color(theme::TEXT_MUTED),
-        text("基于 Rust + iced 0.14 构建").size(12).color(theme::TEXT_MUTED),
-        text("单进程 · 低内存 · 原生体验").size(12).color(theme::TEXT_MUTED),
+        text("版本 0.1.0 (iced)").size(12).color(theme::text_muted()),
+        text("基于 Rust + iced 0.14 构建").size(12).color(theme::text_muted()),
+        text("单进程 · 低内存 · 原生体验").size(12).color(theme::text_muted()),
     ]
     .spacing(6)
     .padding([16, 16])
@@ -455,8 +553,8 @@ pub fn model_view<'a>(_state: &'a State) -> Element<'a, Message> {
         .map(|(i, m)| {
             let selected = i == 0;
             row![
-                text(*m).size(13).color(if selected { theme::ACCENT } else { theme::TEXT_PRIMARY }).width(Length::Fill),
-                if selected { text("●").size(12).color(theme::ACCENT) } else { text("").size(12) },
+                text(*m).size(13).color(if selected { theme::accent() } else { theme::text_primary() }).width(Length::Fill),
+                if selected { text("●").size(12).color(theme::accent()) } else { text("").size(12) },
             ]
             .spacing(8)
             .padding([12, 16])

@@ -5,7 +5,6 @@ mod ui;
 
 use iced::Element;
 use iced::Task;
-use iced::Color;
 use std::borrow::Cow;
 use iced_window_chrome::{ChromeSettings, Event, WindowsChromeSettings, WindowCornerPreference};
 use tracing_subscriber;
@@ -16,7 +15,7 @@ fn main() -> iced::Result {
         .init();
 
     iced::application(boot, update, view)
-        .theme(iced::Theme::Dark)
+        .theme(pick_theme)
         .window(window_settings())
         .title("Eleve Agent")
         .subscription(subscription)
@@ -67,38 +66,31 @@ fn load_chinese_fonts() -> Task<Message> {
     }
 }
 
-/// 配置系统原生窗体的标题栏，使其与背板颜色一致，视觉上融为一体
+/// 配置系统原生窗体的标题栏，使其与背板颜色一致，视觉上融为一体。
+/// 启动时用当前全局调色板的背板色作为初始值（之后换主题会再动态重设）。
 fn make_chrome_settings() -> ChromeSettings {
-    // 背板颜色
-    let backboard = Color::from_rgb(0.08, 0.09, 0.10);
-
-    ChromeSettings {
-        windows: WindowsChromeSettings {
-            // 保留标题栏（caption区域），否则关闭/最小化/最大化按钮也会消失
-            caption: true,
-            // 保留边框（用于拖拽缩放）
-            border: true,
-            // 保留关闭/最小化/最大化按钮
-            buttons: iced_window_chrome::CaptionButtons::default(),
-            // Win11 圆角
-            corner_preference: Some(WindowCornerPreference::Round),
-            // 边框颜色 = 背板色（消除分界线）
-            border_color: Some(backboard),
-            // 标题栏背景色 = 背板色（融为一体）
-            title_background_color: Some(backboard),
-            // 标题文字颜色 = 背板色（不可见）
-            title_text_color: Some(backboard),
-            // 不使用系统 backdrop
-            backdrop: None,
-        },
-        macos: Default::default(),
-        linux: Default::default(),
-    }
+    chrome_for_current_theme()
 }
 
 fn update(state: &mut State, message: Message) -> Task<Message> {
     match message {
-        Message::Ui(msg) => ui::update(state.ui.as_mut().unwrap(), msg).map(Message::Ui),
+        Message::Ui(msg) => {
+            // 主题相关变更（换色 / 换外观 / 换字号）会改变背板派生色，
+            // 必须同步重设窗口标题栏（caption）颜色，否则标题栏与背板脱节——
+            // 这是反复出现的“标题栏不一致”根因。
+            let is_theme_change = matches!(
+                msg,
+                ui::Message::SetAccent(_)
+                    | ui::Message::SetAppearance(_)
+                    | ui::Message::SetFontScale(_)
+            );
+            let task = ui::update(state.ui.as_mut().unwrap(), msg).map(Message::Ui);
+            if is_theme_change {
+                Task::batch([task, iced_window_chrome::apply_to_latest(chrome_for_current_theme())])
+            } else {
+                task
+            }
+        }
         Message::Chrome(event) => iced_window_chrome::handle(event),
         Message::FontLoaded => Task::none(),
     }
@@ -130,4 +122,43 @@ pub enum Message {
 pub struct State {
     ui: Option<ui::State>,
     chrome: ChromeSettings,
+}
+
+/// 动态主题：根据全局调色板的 is_dark 切换 iced 内置 Dark/Light。
+/// 用函数项（非闭包）以满足 iced `theme()` 的高阶生命周期约束。
+fn pick_theme(_state: &State) -> iced::Theme {
+    if ui::theme::is_dark() {
+        iced::Theme::Dark
+    } else {
+        iced::Theme::Light
+    }
+}
+
+/// 依据当前全局调色板派生标题栏颜色，使系统标题栏与背板融为一体。
+/// 背板是整体系色、随 accent / 外观动态变化，标题栏必须跟着变。
+fn chrome_for_current_theme() -> ChromeSettings {
+    let backboard = ui::theme::bg_backboard();
+
+    ChromeSettings {
+        windows: WindowsChromeSettings {
+            // 保留标题栏（caption 区域），否则关闭/最小化/最大化按钮也会消失
+            caption: true,
+            // 保留边框（用于拖拽缩放）
+            border: true,
+            // 保留关闭/最小化/最大化按钮
+            buttons: iced_window_chrome::CaptionButtons::default(),
+            // Win11 圆角
+            corner_preference: Some(WindowCornerPreference::Round),
+            // 边框颜色 = 背板色（消除分界线）
+            border_color: Some(backboard),
+            // 标题栏背景色 = 背板色（融为一体）
+            title_background_color: Some(backboard),
+            // 标题文字颜色 = 背板色（不可见，自家无标题）
+            title_text_color: Some(backboard),
+            // 不使用系统 backdrop
+            backdrop: None,
+        },
+        macos: Default::default(),
+        linux: Default::default(),
+    }
 }

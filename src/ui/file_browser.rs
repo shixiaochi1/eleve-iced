@@ -8,7 +8,7 @@ use crate::ui::{FsNode, Message, State, theme};
 
 pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     let header = row![
-        text("文件").size(14).color(theme::TEXT_PRIMARY).width(Length::Fill),
+        text("文件").size(14).color(theme::text_primary()).width(Length::Fill),
     ]
     .padding([12, 16])
     .spacing(8)
@@ -17,7 +17,7 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
     let root_label = container(
         row![
             folder_icon(false),
-            text(&state.fs_root_name).size(11).color(theme::TEXT_MUTED),
+            text(&state.fs_root_name).size(11).color(theme::text_muted()),
         ]
         .spacing(6)
         .align_y(Alignment::Center),
@@ -27,7 +27,7 @@ pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: theme::SEPARATOR,
+            color: theme::separator(),
         },
         ..Default::default()
     });
@@ -83,7 +83,7 @@ fn file_row<'a>(node: &'a FsNode, depth: usize, state: &'a State) -> Element<'a,
         file_icon()
     };
 
-    let row_content = row![chevron, icon, text(&node.name).size(12).color(theme::TEXT_PRIMARY)]
+    let row_content = row![chevron, icon, text(&node.name).size(12).color(theme::text_primary())]
         .spacing(6)
         .align_y(Alignment::Center);
 
@@ -91,7 +91,7 @@ fn file_row<'a>(node: &'a FsNode, depth: usize, state: &'a State) -> Element<'a,
         .padding([5, 8])
         .style(move |_: &iced::Theme| {
             let bg = if selected {
-                Some(Background::Color(theme::BG_HOVER))
+                Some(Background::Color(theme::bg_hover()))
             } else {
                 None
             };
@@ -119,7 +119,7 @@ fn empty_view<'a>() -> Element<'a, Message> {
     container(
         column![
             folder_icon(false),
-            text("空目录").size(12).color(theme::TEXT_MUTED),
+            text("空目录").size(12).color(theme::text_muted()),
         ]
         .spacing(8)
         .align_x(Alignment::Center),
@@ -147,7 +147,7 @@ fn chevron_icon<'a>(open: bool) -> Element<'a, Message> {
         .width(Length::Fixed(12.0))
         .height(Length::Fixed(12.0))
         .style(|_: &iced::Theme, _s: iced::widget::svg::Status| iced::widget::svg::Style {
-            color: Some(theme::TEXT_MUTED),
+            color: Some(theme::text_muted()),
         })
         .into()
 }
